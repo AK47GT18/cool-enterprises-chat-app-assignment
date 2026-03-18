@@ -30,13 +30,14 @@ export async function PATCH(req: Request) {
     const { user, error } = await SessionService.requireAuth();
     if (error) return error;
 
-    const { username, image } = await req.json();
+    const { username, image, isPrivate } = await req.json();
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         ...(username && { username }),
         ...(image && { image }),
+        ...(typeof isPrivate === 'boolean' && { isPrivate }),
       }
     });
 

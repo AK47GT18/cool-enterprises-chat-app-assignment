@@ -13,6 +13,7 @@ export default function ProfileTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedImage, setEditedImage] = useState('');
+  const [editedIsPrivate, setEditedIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,6 +26,7 @@ export default function ProfileTab() {
           setProfile(data);
           setEditedName(data.username || '');
           setEditedImage(data.image || '');
+          setEditedIsPrivate(data.isPrivate || false);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -43,7 +45,8 @@ export default function ProfileTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           username: editedName,
-          image: editedImage
+          image: editedImage,
+          isPrivate: editedIsPrivate
         })
       });
       if (response.ok) {
@@ -157,6 +160,21 @@ export default function ProfileTab() {
                 className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center font-bold outline-none"
                 placeholder="Avatar URL"
               />
+              <button 
+                type="button" 
+                onClick={() => setEditedIsPrivate(!editedIsPrivate)}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  editedIsPrivate ? "bg-slate-50 border-slate-200" : "bg-blue-50 border-blue-200"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {editedIsPrivate ? <Shield size={16} className="text-slate-500" /> : <Globe size={16} className="text-blue-500" />}
+                  <span className="text-sm font-bold">{editedIsPrivate ? "Private Profile" : "Public Profile"}</span>
+                </div>
+                <div className={`w-10 h-5 rounded-full relative transition-colors ${editedIsPrivate ? "bg-slate-300" : "bg-blue-500"}`}>
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${editedIsPrivate ? "left-1" : "left-6"}`} />
+                </div>
+              </button>
               <div className="flex gap-2">
                 <button onClick={handleSave} disabled={saving} className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-bold text-sm flex items-center justify-center gap-2">
                   <Save size={14} /> {saving ? 'Saving...' : 'Save'}
