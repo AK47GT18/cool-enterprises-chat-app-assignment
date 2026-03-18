@@ -80,27 +80,54 @@ export default function GroupsTab({ onOpenCreateModal }: GroupsTabProps) {
             {groups.map((group) => (
               <div 
                 key={group.id} 
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+                className="group relative flex flex-col gap-3 p-5 rounded-[24px] bg-white border border-[#E2E8F0] hover:border-[#2C6BED] hover:shadow-[0_12px_30px_rgba(44,107,237,0.08)] transition-all duration-300 cursor-pointer overflow-hidden"
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center overflow-hidden border border-white/5">
-                  {group.imageUrl ? (
-                    <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Users className="text-blue-400 w-6 h-6" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white truncate">{group.name}</h3>
-                    {group.isPublicGroup ? (
-                      <Globe size={12} className="text-slate-500" />
+                {/* Subtle Glow */}
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors" />
+
+                <div className="flex items-start justify-between gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2C6BED] to-[#60A5FA] flex items-center justify-center overflow-hidden shadow-[0_8px_20px_rgba(44,107,237,0.15)] shrink-0">
+                    {group.imageUrl ? (
+                      <img src={group.imageUrl} alt={group.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Shield size={12} className="text-blue-400" />
+                      <Users className="text-white w-7 h-7" />
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                    {group.description || 'No description'}
+                  
+                  <div className="flex flex-col items-end gap-1.5">
+                    {group.isPublicGroup ? (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-[10px] font-black text-green-600 uppercase tracking-wider">
+                        <Globe size={10} /> Public
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[10px] font-black text-blue-600 uppercase tracking-wider">
+                        <Shield size={10} /> Private
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-black text-[#111827] truncate group-hover:text-[#2C6BED] transition-colors">{group.name}</h3>
+                  <p className="text-xs font-semibold text-[#6B7280] line-clamp-2 mt-1 leading-relaxed">
+                    {group.description || 'No description provided for this community.'}
                   </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                  <div className="flex -space-x-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400">
+                        U
+                      </div>
+                    ))}
+                    <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-50 flex items-center justify-center text-[8px] font-black text-blue-600">
+                      +{Math.max(0, (group.members?.length || 0) - 3)}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {group.members?.length || 0} Members
+                  </span>
                 </div>
               </div>
             ))}

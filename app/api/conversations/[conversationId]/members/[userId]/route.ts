@@ -1,0 +1,139 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { createClient } from '@/utils/supabase/server';
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: { conversationId: string; userId: string } }
+) {
+  try {
+    const { conversationId, userId } = params;
+    const { role } = await req.json();
+    const supabase = await createClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Check if current user is ADMIN or SUPER_ADMIN
+    const currentMember = await prisma.userConversation.findUnique({
+      where: {
+        userId_conversationId: {
+          userId: currentUser.id,
+          conversationId
+        }
+      }
+    });
+
+    if (!currentMember || (currentMember.role !== 'ADMIN' && currentMember.role !== 'SUPER_ADMIN')) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Target member
+    const targetMember = await prisma.userConversation.findUnique({
+      where: {
+        userId_conversationId: {
+          userId,
+          conversationId
+        }
+      }
+    });
+
+    if (!targetMember) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+
+    // Prevent demoting/promoting SUPER_ADMIN
+    if (targetMember.role === 'SUPER_ADMIN') {
+      return new NextResponse("Cannot modify Super Admin", { status: 403 });
+    }
+
+    // If current is only ADMIN, they can't make others SUPER_ADMIN or modify other ADMINS (optional logic)
+    // For now, let's keep it simple: SUPER_ADMIN can do anything, ADMIN can promote/demote regular members.
+    
+    if (currentMember.role === 'ADMIN' && targetMember.role === 'ADMIN') {
+        return new NextResponse("Admins cannot modify other Admins", { status: 403 });
+    }
+
+    const updatedMember = await prisma.userConversation.update({
+      where: {
+        userId_conversationId: {
+          userId,
+          conversationId
+        }
+      },
+      data: { role }
+    });
+
+    return NextResponse.json(updatedMember);
+  } catch (error) {
+    console.error("[MEMBER_PATCH]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { conversationId: string; userId: string } }
+) {
+  try {
+    const { conversationId, userId } = params;
+    const supabase = await createClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Check if current user is ADMIN or SUPER_ADMIN
+    const currentMember = await prisma.userConversation.findUnique({
+      where: {
+        userId_conversationId: {
+          userId: currentUser.id,
+          conversationId
+        }
+      }
+    });
+
+    if (!currentMember || (currentMember.role !== 'ADMIN' && currentMember.role !== 'SUPER_ADMIN')) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Target member
+    const targetMember = await prisma.userConversation.findUnique({
+      where: {
+        userId_conversationId: {
+          userId,
+          conversationId
+        }
+      }
+    });
+
+    if (!targetMember) {
+      return new NextResponse("Member not found", { status: 404 });
+    }
+
+    if (targetMember.role === 'SUPER_ADMIN') {
+      return new NextResponse("Cannot remove Super Admin", { status: 403 });
+    }
+
+    if (currentMember.role === 'ADMIN' && targetMember.role === 'ADMIN') {
+        return new NextResponse("Admins cannot remove other Admins", { status: 403 });
+    }
+
+    await prisma.userConversation.delete({
+      where: {
+        userId_conversationId: {
+          userId,
+          conversationId
+        }
+      }
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("[MEMBER_DELETE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

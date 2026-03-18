@@ -23,7 +23,10 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const [currentUser, setCurrentUser] = React.useState<any>(null);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
@@ -96,8 +99,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     };
   }, [chat?.id]);
 
-  const handleSendMessage = async () => {
-    if (!chat || !message.trim()) return;
+  const handleSendMessage = async (attachments: any = {}) => {
+    if (!chat || (!message.trim() && !attachments.imageUrl && !attachments.videoUrl && !attachments.documentUrl)) return;
     const body = message;
     setMessage('');
     
@@ -107,11 +110,53 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           body,
-          conversationId: chat.id
+          conversationId: chat.id,
+          ...attachments
         })
       });
     } catch (error) {
       console.error("Failed to send message:", error);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !chat) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const supabase = createClient();
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `messages/${chat.id}/${Date.now()}_${fileName}`;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('chat-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-media')
+        .getPublicUrl(filePath);
+
+      const attachments: any = {};
+      if (file.type.startsWith('image/')) attachments.imageUrl = publicUrl;
+      else if (file.type.startsWith('video/')) attachments.videoUrl = publicUrl;
+      else attachments.documentUrl = publicUrl;
+
+      await handleSendMessage(attachments);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -215,7 +260,20 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
 
       {/* Input Area */}
       <div className={styles.inputArea}>
-        <button className={styles.iconBtn}><Paperclip size={24} /></button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          onChange={handleFileUpload}
+          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+        />
+        <button 
+          className={clsx(styles.iconBtn, isUploading && "animate-pulse")} 
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          <Paperclip size={24} />
+        </button>
         <div className={styles.inputWrapper}>
           <button className={styles.insideIconBtn}><Smile size={24} /></button>
           <textarea 
