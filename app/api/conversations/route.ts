@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/utils/supabase/server';
+import { SessionService } from '@/services/session.service';
+import { Role } from '@prisma/client';
+import { decryptMessage } from '@/lib/encryption';
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const { name, description, imageUrl, isGroup, isPublicGroup, memberIds } = await req.json();
 
@@ -22,13 +20,17 @@ export async function POST(req: Request) {
         isPublicGroup,
         members: {
           create: [
-            { userId: user.id, role: 'SUPER_ADMIN' },
-            ...(memberIds || []).map((id: string) => ({ userId: id, role: 'MEMBER' }))
+            { userId: user.id, role: Role.SUPER_ADMIN },
+            ...(memberIds || []).map((id: string) => ({ userId: id, role: Role.MEMBER }))
           ]
         }
       },
       include: {
-        members: true
+        members: {
+          include: {
+            user: true
+          }
+        }
       }
     });
 
@@ -39,17 +41,14 @@ export async function POST(req: Request) {
   }
 }
 
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     if (id) {
       const conversation = await prisma.conversation.findUnique({
@@ -66,6 +65,17 @@ export async function GET(req: Request) {
             },
             orderBy: {
               createdAt: 'desc'
+            }
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  image: true,
+                }
+              }
             }
           }
         }
@@ -99,7 +109,32 @@ export async function GET(req: Request) {
       }
     });
 
-    return NextResponse.json(conversations);
+    const formattedConversations = conversations.map(chat => {
+      let displayName = chat.name;
+      let displayImage = chat.imageUrl;
+
+      if (!chat.isGroup) {
+        const otherMember = chat.members.find((m: any) => m.userId !== user.id);
+        if (otherMember) {
+          displayName = otherMember.user.username;
+          displayImage = otherMember.user.image;
+        }
+      }
+
+      const lastMessage = chat.messages[0] ? {
+        ...chat.messages[0],
+        body: chat.messages[0].body ? decryptMessage(chat.messages[0].body) : chat.messages[0].body
+      } : null;
+
+      return {
+        ...chat,
+        name: displayName,
+        imageUrl: displayImage,
+        messages: lastMessage ? [lastMessage] : []
+      };
+    });
+
+    return NextResponse.json(formattedConversations);
   } catch (error) {
     console.error("[CONVERSATIONS_GET]", error);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });

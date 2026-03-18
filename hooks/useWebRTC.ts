@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { VoIPService } from '@/services/voip.service';
+import { useChatStore } from '@/hooks/useChatStore';
 
 export const useWebRTC = (conversationId: string | null) => {
   const [isCalling, setIsCalling] = useState(false);
@@ -7,7 +8,9 @@ export const useWebRTC = (conversationId: string | null) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const pc = useRef<RTCPeerConnection | null>(null);
-  const supabase = createClient();
+  const signalingRef = useRef<any>(null);
+  const { currentUser } = useChatStore();
+  const currentUserId = currentUser?.id;
 
   const cleanup = () => {
     setIsCalling(false);
@@ -19,14 +22,14 @@ export const useWebRTC = (conversationId: string | null) => {
     pc.current = null;
   };
 
-  const createPC = (channel: any) => {
+  const createPC = (signaling: any) => {
     const pcInstance = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
     pcInstance.onicecandidate = (event) => {
       if (event.candidate) {
-        channel.send({ type: 'broadcast', event: 'ice-candidate', payload: event.candidate });
+        signaling.sendIceCandidate(event.candidate);
       }
     };
 
@@ -39,63 +42,65 @@ export const useWebRTC = (conversationId: string | null) => {
   };
 
   useEffect(() => {
-    if (!conversationId) return;
-    const channel = supabase.channel(`call:${conversationId}`);
+    if (!conversationId || !currentUserId) return;
 
-    channel
-      .on('broadcast', { event: 'offer' }, async ({ payload }) => {
+    const signaling = VoIPService.createSignalingChannel(conversationId, currentUserId, {
+      onIncomingCall: async (callerId, offer) => {
         if (!isCalling) {
           setIsIncoming(true);
-          const instance = createPC(channel);
-          await instance.setRemoteDescription(new RTCSessionDescription(payload));
+          const instance = createPC(signaling);
+          await instance.setRemoteDescription(new RTCSessionDescription(offer));
         }
-      })
-      .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        await pc.current?.setRemoteDescription(new RTCSessionDescription(payload));
-      })
-      .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-        await pc.current?.addIceCandidate(new RTCIceCandidate(payload));
-      })
-      .on('broadcast', { event: 'hangup' }, () => {
+      },
+      onCallAnswered: async (answer) => {
+        await pc.current?.setRemoteDescription(new RTCSessionDescription(answer));
+      },
+      onIceCandidate: async (candidate) => {
+        await pc.current?.addIceCandidate(new RTCIceCandidate(candidate));
+      },
+      onHangup: () => {
         cleanup();
-      })
-      .subscribe();
+      }
+    });
+
+    signalingRef.current = signaling;
 
     return () => {
-      supabase.removeChannel(channel);
+      signaling.cleanup();
       cleanup();
     };
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
   const startCall = async () => {
+    if (!signalingRef.current) return;
     setIsCalling(true);
-    const channel = supabase.channel(`call:${conversationId}`);
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     setLocalStream(stream);
 
-    const instance = createPC(channel);
+    const instance = createPC(signalingRef.current);
     stream.getTracks().forEach(track => instance.addTrack(track, stream));
 
     const offer = await instance.createOffer();
     await instance.setLocalDescription(offer);
-    channel.send({ type: 'broadcast', event: 'offer', payload: offer });
+    await signalingRef.current.sendOffer(offer);
   };
 
   const acceptCall = async () => {
-    const channel = supabase.channel(`call:${conversationId}`);
+    if (!pc.current || !signalingRef.current) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     setLocalStream(stream);
 
-    localStream?.getTracks().forEach(track => pc.current?.addTrack(track, stream));
-    const answer = await pc.current!.createAnswer();
-    await pc.current!.setLocalDescription(answer);
-    channel.send({ type: 'broadcast', event: 'answer', payload: answer });
+    stream.getTracks().forEach(track => pc.current?.addTrack(track, stream));
+    const answer = await pc.current.createAnswer();
+    await pc.current.setLocalDescription(answer);
+    
+    await signalingRef.current.sendAnswer(answer);
     setIsIncoming(false);
     setIsCalling(true);
   };
 
   const hangup = () => {
-    supabase.channel(`call:${conversationId}`).send({ type: 'broadcast', event: 'hangup' });
+    signalingRef.current?.sendHangup();
     cleanup();
   };
 

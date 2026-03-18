@@ -25,7 +25,7 @@ export default function ProfileSettingsPage() {
       <div className="max-w-4xl mx-auto">
         <header className="mb-10 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/chat" className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm">
+            <Link href="/" className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm">
               <ArrowLeft size={24} className="text-slate-600" />
             </Link>
             <h1 className="text-3xl font-bold text-slate-900">Profile Settings</h1>

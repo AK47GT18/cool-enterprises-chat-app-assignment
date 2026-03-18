@@ -12,10 +12,50 @@ interface CreateGroupModalProps {
 export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [imageUrl, setImageUrl] = React.useState('');
   const [isPublic, setIsPublic] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+  const [imageUrl, setImageUrl] = React.useState('');
   const [error, setError] = React.useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image must be less than 2MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError('');
+
+    try {
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+      const fileExt = file.name.split('.').pop();
+      const filePath = `groups/${Date.now()}_${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-media')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-media')
+        .getPublicUrl(filePath);
+
+      setImageUrl(publicUrl);
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -118,20 +158,36 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
                 </div>
               </div>
 
-              {/* Group Image URL */}
+              {/* Group Image Upload */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-[#111827] uppercase tracking-[0.05em] ml-0.5 opacity-60">
-                  Group Image URL <span className="text-[#9CA3AF] font-bold normal-case tracking-normal">(optional)</span>
+                  Group Image <span className="text-[#9CA3AF] font-bold normal-case tracking-normal">(Max 2MB)</span>
                 </label>
-                <div className="relative group">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] w-5 h-5 group-focus-within:text-[#2C6BED] transition-all duration-300" />
+                <div 
+                  className="w-full bg-[#F8FAFC] border border-[#E2E8F0] border-dashed rounded-[14px] p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[#2C6BED] hover:bg-[#E8F0FD] transition-all duration-300"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <input
-                    type="text"
-                    placeholder="Enter a image URL..."
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
                   />
+                  {uploadingImage ? (
+                    <Loader2 className="animate-spin text-[#2C6BED] mb-2" size={24} />
+                  ) : imageUrl ? (
+                    <div className="w-16 h-16 rounded-xl overflow-hidden mb-2 shadow-md">
+                      <img src={imageUrl} alt="Uploaded preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mb-2">
+                      <Globe size={24} />
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-[#111827]">
+                    {uploadingImage ? 'Uploading...' : imageUrl ? 'Change Image' : 'Select Media'}
+                  </span>
                 </div>
               </div>
 

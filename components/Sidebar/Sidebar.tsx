@@ -2,7 +2,7 @@ import React from 'react';
 import styles from './Sidebar.module.css';
 import { MessageSquare, Users, Phone, Settings, CircleDashed, User } from 'lucide-react';
 import clsx from 'clsx';
-import Image from 'next/image';
+import { useChatStore } from '@/hooks/useChatStore';
 
 interface SidebarProps {
   activeTab: string;
@@ -11,6 +11,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: SidebarProps) {
+  const { currentUser } = useChatStore();
+
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
@@ -62,10 +64,13 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
         <button className={styles.navItem} onClick={toggleTheme} aria-label="Settings">
           <Settings size={24} />
         </button>
+        {/* Profile picture — clickable to open profile tab */}
         <img
-          src="https://i.pravatar.cc/150?u=a042581f4e29026024d"
+          src={currentUser?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${currentUser?.email || 'U'}&background=random`}
           alt="Profile"
           className={styles.profilePic}
+          onClick={() => setActiveTab('profile')}
+          style={{ cursor: 'pointer' }}
         />
       </div>
     </aside>

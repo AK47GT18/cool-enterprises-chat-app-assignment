@@ -4,27 +4,26 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Loader2, Globe, ShieldCheck, Eye, EyeOff, ArrowRight, CircleDashed } from "lucide-react";
-import { signUp } from "@/utils/supabase/actions";
+import { signup } from "@/app/auth/actions";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
     const formData = new FormData(e.currentTarget);
-    const { error: authError } = await signUp(
-      formData.get("email") as string,
-      formData.get("password") as string,
-      formData.get("username") as string,
-      isPublic
-    );
-    if (authError) { setError(authError.message); setLoading(false); }
-    else window.location.href = "/";
+    const result = await signup(formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,6 +60,7 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8" autoComplete="on">
+            <input type="hidden" name="isPublic" value={String(isPublic)} />
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}

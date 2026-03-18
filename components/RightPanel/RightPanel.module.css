@@ -338,3 +338,44 @@
     width: 100vw;
   }
 }
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.memberBadge {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.adminBadge {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.publicBadge {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
+.privateBadge {
+  background-color: #fff1f2;
+  color: #e11d48;
+}
+
+[data-theme="dark"] .badge {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .memberBadge { color: #94a3b8; }
+[data-theme="dark"] .adminBadge { color: #60a5fa; background-color: rgba(59, 130, 246, 0.1); }
+[data-theme="dark"] .publicBadge { color: #4ade80; background-color: rgba(74, 222, 128, 0.1); }
+[data-theme="dark"] .privateBadge { color: #fb7185; background-color: rgba(251, 113, 133, 0.1); }

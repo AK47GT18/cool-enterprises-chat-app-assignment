@@ -11,13 +11,12 @@ export default function ContactList() {
 
   React.useEffect(() => {
     const search = async () => {
-      if (searchQuery.length < 2) {
-        setResults([]);
-        return;
-      }
       setIsSearching(true);
       try {
-        const res = await fetch(`/api/users/search?q=${searchQuery}`);
+        const url = searchQuery.length >= 2 
+          ? `/api/users/search?q=${searchQuery}`
+          : `/api/users/search`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         setResults(data);
@@ -76,7 +75,9 @@ export default function ContactList() {
 
          {results.length > 0 && (
            <>
-             <p className={styles.sectionTitle}>Search Results</p>
+             <p className={styles.sectionTitle}>
+               {searchQuery.length >= 2 ? 'Search Results' : 'Discover People'}
+             </p>
              {results.map((user) => (
                <div key={user.id} className={styles.contactItem}>
                   <div className={styles.contactInfo}>
@@ -94,10 +95,10 @@ export default function ContactList() {
            </>
          )}
 
-         {!isSearching && searchQuery.length < 2 && (
-           <div className={styles.statusMsg}>
-             Start typing to find and connect with people.
-           </div>
+         {!isSearching && results.length === 0 && (
+            <div className={styles.statusMsg}>
+              {searchQuery.length >= 2 ? "No users found with that name." : "No public users found yet."}
+            </div>
          )}
       </div>
     </div>

@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import styles from './ChatList.module.css';
 import { Search, Plus, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
-
-import { createClient } from '@/utils/supabase/client';
+import { useChatStore } from '@/hooks/useChatStore';
 
 interface ChatListProps {
   activeChatId: string | null;
@@ -14,49 +13,10 @@ interface ChatListProps {
 
 export default function ChatList({ activeChatId, onSelectChat, isMobileListVisible }: ChatListProps) {
   const [mounted, setMounted] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { conversations, loading } = useChatStore();
 
-  const fetchConversations = async () => {
-    try {
-      const response = await fetch('/api/conversations');
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
-      }
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+  React.useEffect(() => {
     setMounted(true);
-    fetchConversations();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel('conversations_updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Message' },
-        () => {
-          fetchConversations();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Conversation' },
-        () => {
-          fetchConversations();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   return (
@@ -89,7 +49,7 @@ export default function ChatList({ activeChatId, onSelectChat, isMobileListVisib
           </div>
         ) : conversations.map(chat => {
           const lastMessage = chat.messages?.[0];
-          const unreadCount = chat.members?.find((m: any) => m.hasSeenLatest === false) ? 1 : 0; // Simplified unread logic
+          const unreadCount = chat.members?.find((m: any) => m.hasSeenLatest === false) ? 1 : 0;
           
           return (
             <div 

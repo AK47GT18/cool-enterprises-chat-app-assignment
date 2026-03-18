@@ -1,20 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/utils/supabase/server';
+import { SessionService } from '@/services/session.service';
+import { Role } from '@prisma/client';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { conversationId: string; userId: string } }
+  { params }: { params: Promise<{ conversationId: string; userId: string }> }
 ) {
   try {
-    const { conversationId, userId } = params;
+    const { conversationId, userId } = await params;
     const { role } = await req.json();
-    const supabase = await createClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { user: currentUser, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     // Check if current user is ADMIN or SUPER_ADMIN
     const currentMember = await prisma.userConversation.findUnique({
@@ -26,7 +23,7 @@ export async function PATCH(
       }
     });
 
-    if (!currentMember || (currentMember.role !== 'ADMIN' && currentMember.role !== 'SUPER_ADMIN')) {
+    if (!currentMember || (currentMember.role !== Role.ADMIN && currentMember.role !== Role.SUPER_ADMIN)) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -45,14 +42,14 @@ export async function PATCH(
     }
 
     // Prevent demoting/promoting SUPER_ADMIN
-    if (targetMember.role === 'SUPER_ADMIN') {
+    if (targetMember.role === Role.SUPER_ADMIN) {
       return new NextResponse("Cannot modify Super Admin", { status: 403 });
     }
 
     // If current is only ADMIN, they can't make others SUPER_ADMIN or modify other ADMINS (optional logic)
     // For now, let's keep it simple: SUPER_ADMIN can do anything, ADMIN can promote/demote regular members.
     
-    if (currentMember.role === 'ADMIN' && targetMember.role === 'ADMIN') {
+    if (currentMember.role === Role.ADMIN && targetMember.role === Role.ADMIN) {
         return new NextResponse("Admins cannot modify other Admins", { status: 403 });
     }
 
@@ -75,18 +72,14 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { conversationId: string; userId: string } }
+  { params }: { params: Promise<{ conversationId: string; userId: string }> }
 ) {
   try {
-    const { conversationId, userId } = params;
-    const supabase = await createClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { conversationId, userId } = await params;
+    const { user: currentUser, error } = await SessionService.requireAuth();
+    if (error) return error;
 
-    if (!currentUser) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    // Check if current user is ADMIN or SUPER_ADMIN
+    // Check if current user is ADMIN or SUPER_ADMIN OR is trying to leave (userId === currentUser.id)
     const currentMember = await prisma.userConversation.findUnique({
       where: {
         userId_conversationId: {
@@ -96,7 +89,9 @@ export async function DELETE(
       }
     });
 
-    if (!currentMember || (currentMember.role !== 'ADMIN' && currentMember.role !== 'SUPER_ADMIN')) {
+    const isSelfRemove = userId === currentUser.id;
+
+    if (!currentMember || (!isSelfRemove && currentMember.role !== Role.ADMIN && currentMember.role !== Role.SUPER_ADMIN)) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -114,11 +109,11 @@ export async function DELETE(
       return new NextResponse("Member not found", { status: 404 });
     }
 
-    if (targetMember.role === 'SUPER_ADMIN') {
+    if (targetMember.role === Role.SUPER_ADMIN) {
       return new NextResponse("Cannot remove Super Admin", { status: 403 });
     }
 
-    if (currentMember.role === 'ADMIN' && targetMember.role === 'ADMIN') {
+    if (currentMember.role === Role.ADMIN && targetMember.role === Role.ADMIN) {
         return new NextResponse("Admins cannot remove other Admins", { status: 403 });
     }
 

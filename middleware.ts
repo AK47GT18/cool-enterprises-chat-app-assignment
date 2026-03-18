@@ -1,58 +1,42 @@
-import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { jwtVerify } from "jose";
+
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'fallback-secret-for-dev-only-123'
+);
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  const sessionToken = request.cookies.get('session')?.value;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Protect settings routes
-  if (request.nextUrl.pathname.startsWith('/settings')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/auth/login', request.url));
+  let isValid = false;
+  if (sessionToken) {
+    try {
+      await jwtVerify(sessionToken, secret);
+      isValid = true;
+    } catch (error) {
+      isValid = false;
     }
   }
 
-  // Redirect unauthenticated users from root to login
-  if (request.nextUrl.pathname === '/' && !user) {
+  // Protect private application routes
+  const privateRoutes = ['/chat', '/groups', '/settings', '/'];
+  const isPrivateRoute = privateRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route) || request.nextUrl.pathname === '/'
+  );
+
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+
+  // If trying to access a private route without a valid session, redirect to login
+  if (isPrivateRoute && !isValid && !isAuthRoute && !request.nextUrl.pathname.startsWith('/api')) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
-  // Redirect authenticated users away from auth pages
-  if (request.nextUrl.pathname.startsWith('/auth') && user) {
+  // Redirect authenticated users away from auth pages to root
+  if (isAuthRoute && isValid) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

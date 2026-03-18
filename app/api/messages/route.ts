@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/utils/supabase/server';
+import { SessionService } from '@/services/session.service';
+import { MessageService } from '@/services/message.service';
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const { body, conversationId, imageUrl, videoUrl, documentUrl, voiceNoteUrl } = await req.json();
 
@@ -18,19 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
     }
 
-    const message = await prisma.message.create({
-      data: {
-        body,
-        imageUrl,
-        videoUrl,
-        documentUrl,
-        voiceNoteUrl,
-        conversationId,
-        senderId: user.id,
-      },
-      include: {
-        sender: true,
-      }
+    const message = await MessageService.createMessage({
+      body,
+      imageUrl,
+      videoUrl,
+      documentUrl,
+      voiceNoteUrl,
+      conversationId,
+      senderId: user.id,
     });
 
     // Update unread status for other members

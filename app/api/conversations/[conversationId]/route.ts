@@ -1,27 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/utils/supabase/server';
+import { SessionService } from '@/services/session.service';
 
 export async function GET(
   req: Request,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const { conversationId } = params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { conversationId } = await params;
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
         members: {
           include: {
-            user: true
+            user: {
+              select: {
+                id: true,
+                username: true,
+                image: true,
+                email: true,
+              }
+            }
           }
+        },
+        messages: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
         }
       }
     });
@@ -43,19 +52,16 @@ export async function GET(
   }
 }
 
+
 export async function PATCH(
   req: Request,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
-    const { conversationId } = params;
+    const { conversationId } = await params;
     const { name, description, imageUrl } = await req.json();
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     // Check if user is ADMIN or SUPER_ADMIN
     const member = await prisma.userConversation.findUnique({

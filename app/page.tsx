@@ -10,7 +10,9 @@ import HollersTab from "@/components/Sidebar/HollersTab";
 import ContactList from "@/components/Sidebar/ContactList";
 import CallsTab from "@/components/Sidebar/CallsTab";
 import GroupsTab from "@/components/Sidebar/GroupsTab";
+import ProfileTab from "@/components/Sidebar/ProfileTab";
 import CreateGroupModal from "@/components/Groups/CreateGroupModal";
+import { ChatStoreProvider } from "@/hooks/useChatStore";
 
 type MobileView = "list" | "chat" | "info";
 
@@ -44,61 +46,65 @@ export default function Home() {
 
   const handleSelectChat = (id: string, chat: any) => {
     setSelectedChat(chat);
-    setMobileView("chat"); // On mobile, navigating opens the chat window
+    setMobileView("chat");
   };
 
   const handleBackToList = () => {
     setMobileView("list");
   };
 
-  // Only open right panel on desktop or explicit info request on mobile
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
-    <div className={styles.appContainer}>
-      <div className={styles.floatingWrapper}>
-        <Sidebar 
-          activeTab={activeSidebarTab} 
-          setActiveTab={setActiveSidebarTab} 
-          toggleTheme={toggleTheme} 
-        />
-        
-
-        {activeSidebarTab === 'chats' && (
-          <ChatList 
-            activeChatId={selectedChat?.id || null} 
-            onSelectChat={handleSelectChat}
-            isMobileListVisible={mobileView === "list"}
+    <ChatStoreProvider>
+      <div className={styles.appContainer}>
+        <div className={styles.floatingWrapper}>
+          <Sidebar 
+            activeTab={activeSidebarTab} 
+            setActiveTab={setActiveSidebarTab} 
+            toggleTheme={toggleTheme} 
           />
-        )}
 
-        {activeSidebarTab === 'hollers' && <HollersTab />}
-        {activeSidebarTab === 'status' && <ContactList />}
-        {activeSidebarTab === 'calls' && <CallsTab />}
-        {activeSidebarTab === 'groups' && (
-          <GroupsTab onOpenCreateModal={() => setIsCreateGroupOpen(true)} />
-        )}
-        
-        <ChatWindow 
-          chat={selectedChat} 
-          onBack={handleBackToList}
-          isMobileWindowVisible={mobileView === "chat"}
-        />
+          {activeSidebarTab === 'chats' && (
+            <ChatList 
+              activeChatId={selectedChat?.id || null} 
+              onSelectChat={handleSelectChat}
+              isMobileListVisible={mobileView === "list"}
+            />
+          )}
 
-        <CreateGroupModal 
-          isOpen={isCreateGroupOpen} 
-          onClose={() => setIsCreateGroupOpen(false)} 
-        />
-        
-        {/* Right panel logic: show on desktop if selectedChat exists, hide on mobile unless explicitly toggled (future dev) */}
-        <div className={styles.rightPanelWrapper}>
-          <RightPanel 
+          {activeSidebarTab === 'hollers' && <HollersTab />}
+          {activeSidebarTab === 'status' && <ContactList />}
+          {activeSidebarTab === 'calls' && <CallsTab />}
+          {activeSidebarTab === 'groups' && (
+            <GroupsTab 
+              onOpenCreateModal={() => setIsCreateGroupOpen(true)} 
+              activeGroupId={selectedChat?.id}
+              onSelectGroup={handleSelectChat}
+            />
+          )}
+          {activeSidebarTab === 'profile' && <ProfileTab />}
+          
+          <ChatWindow 
             chat={selectedChat} 
-            onClose={() => setIsRightPanelOpen(false)} 
-            isVisible={!!selectedChat && isRightPanelOpen} 
+            onBack={handleBackToList}
+            isMobileWindowVisible={mobileView === "chat"}
           />
+
+          <CreateGroupModal 
+            isOpen={isCreateGroupOpen} 
+            onClose={() => setIsCreateGroupOpen(false)} 
+          />
+          
+          <div className={styles.rightPanelWrapper}>
+            <RightPanel 
+              chat={selectedChat} 
+              onClose={() => setIsRightPanelOpen(false)} 
+              isVisible={!!selectedChat && isRightPanelOpen} 
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </ChatStoreProvider>
   );
 }

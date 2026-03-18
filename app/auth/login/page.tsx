@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Loader2, CircleDashed } from "lucide-react";
-import { signInWithPassword } from "@/utils/supabase/actions";
+import { login } from "@/app/auth/actions";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -16,16 +16,11 @@ export default function LoginPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const result = await login(formData);
 
-    const { error: authError } = await signInWithPassword(email, password);
-
-    if (authError) {
-      setError(authError.message);
+    if (result?.error) {
+      setError(result.error);
       setLoading(false);
-    } else {
-      window.location.href = "/";
     }
   };
 

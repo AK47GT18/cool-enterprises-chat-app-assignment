@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/utils/supabase/server';
+import { SessionService } from '@/services/session.service';
 
 export async function GET(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const requests = await prisma.contactRequest.findMany({
       where: {
@@ -38,12 +34,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const { receiverId, privacyCode } = await req.json();
 
@@ -93,12 +85,8 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const { requestId, status } = await req.json();
 
