@@ -12,6 +12,7 @@ interface CreateGroupModalProps {
 export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
+  const [imageUrl, setImageUrl] = React.useState('');
   const [isPublic, setIsPublic] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -27,6 +28,7 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
         body: JSON.stringify({
           name,
           description: description.trim() || undefined,
+          imageUrl: imageUrl.trim() || undefined,
           isGroup: true,
           isPublicGroup: isPublic,
           memberIds: []
@@ -37,6 +39,7 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
         onClose();
         setName('');
         setDescription('');
+        setImageUrl('');
         setError('');
       } else {
         const data = await response.json();
@@ -59,7 +62,7 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="relative bg-white border border-[#E2E8F0] rounded-[24px] p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] w-full max-w-xl overflow-hidden"
+            className="relative bg-white border border-[#E2E8F0] rounded-[24px] p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] w-full max-w-xl overflow-y-auto max-h-[90vh]"
           >
             {/* Subtle Top Accent */}
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-[#2C6BED] to-transparent opacity-40" />
@@ -67,12 +70,16 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#2C6BED] to-[#60A5FA] rounded-[14px] flex items-center justify-center shadow-[0_8px_20px_rgba(44,107,237,0.2)]">
-                  <Users className="text-white w-6 h-6" />
+                <div className="w-12 h-12 bg-gradient-to-br from-[#2C6BED] to-[#60A5FA] rounded-[14px] flex items-center justify-center shadow-[0_8px_20px_rgba(44,107,237,0.2)] overflow-hidden">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt="Group Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Users className="text-white w-6 h-6" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-2xl font-black text-[#111827] tracking-tight">Create Group</h2>
-                  <p className="text-sm text-[#6B7280] font-medium">Start a new community</p>
+                  <p className="text-sm text-[#6B7280] font-medium">Start a new community as Super Admin</p>
                 </div>
               </div>
               <button
@@ -107,6 +114,23 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
                     className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Group Image URL */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-[#111827] uppercase tracking-[0.05em] ml-0.5 opacity-60">
+                  Group Image URL <span className="text-[#9CA3AF] font-bold normal-case tracking-normal">(optional)</span>
+                </label>
+                <div className="relative group">
+                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] w-5 h-5 group-focus-within:text-[#2C6BED] transition-all duration-300" />
+                  <input
+                    type="text"
+                    placeholder="Enter a image URL..."
+                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
                   />
                 </div>
               </div>

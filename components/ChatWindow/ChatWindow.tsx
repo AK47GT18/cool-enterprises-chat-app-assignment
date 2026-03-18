@@ -9,7 +9,7 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import CallModal from '@/components/Calls/CallModal';
 
 interface ChatWindowProps {
-  chat: { id: string; name: string; avatar: string; online?: boolean; isGroup?: boolean } | null;
+  chat: { id: string; name: string; avatar: string; imageUrl?: string; online?: boolean; isGroup?: boolean } | null;
   onBack: () => void;
   isMobileWindowVisible: boolean;
 }
@@ -20,6 +20,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const { isCalling, isIncoming, startCall, acceptCall, hangup, remoteStream } = useWebRTC(chat?.id || null);
   const [message, setMessage] = React.useState('');
   const [messages, setMessages] = React.useState<any[]>([]);
+  const [currentUser, setCurrentUser] = React.useState<any>(null);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,6 +43,14 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     }
     return () => clearInterval(interval);
   }, [isRecording]);
+
+  // Fetch current user
+  React.useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUser(user);
+    });
+  }, []);
 
   // Real-time listener
   React.useEffect(() => {
@@ -68,8 +77,16 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'Message', filter: `conversationId=eq.${chat.id}` },
-        (payload) => {
-          setMessages((current) => [...current, payload.new]);
+        async (payload) => {
+          // Fetch sender info for the new message
+          const { data: sender } = await supabase
+            .from('User')
+            .select('username, image')
+            .eq('id', payload.new.senderId)
+            .single();
+          
+          const newMessage = { ...payload.new, sender };
+          setMessages((current) => [...current, newMessage]);
         }
       )
       .subscribe();
@@ -117,10 +134,14 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           <button className={styles.backBtn} onClick={onBack} aria-label="Back">
             <ArrowLeft size={24} />
           </button>
-          <img src={chat.avatar} alt={chat.name} className={styles.avatar} />
+          <img 
+            src={chat.imageUrl || chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}&background=random`} 
+            alt={chat.name} 
+            className={styles.avatar} 
+          />
           <div className={styles.userInfo}>
             <h2>{chat.name}</h2>
-            <span className={styles.status}>{chat.online ? 'Online' : 'offline'}</span>
+            <span className={styles.status}>{chat.isGroup ? 'Group' : (chat.online ? 'Online' : 'offline')}</span>
           </div>
         </div>
         <div className={styles.headerRight}>
@@ -144,14 +165,26 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           >
             <div className={clsx(
               styles.messageBubble, 
-              msg.senderId === chat.id ? styles.received : styles.sent
+              msg.senderId === currentUser?.id ? styles.sent : styles.received
             )}>
-              {chat.isGroup && msg.senderId !== chat.id && (
+              {chat.isGroup && msg.senderId !== currentUser?.id && (
                 <span className="text-[10px] font-bold text-blue-400 block mb-1">
                    @{msg.sender?.username || 'user'}
                 </span>
               )}
-              <p>{msg.body}</p>
+              {msg.imageUrl && (
+                <img src={msg.imageUrl} alt="Attachment" className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(msg.imageUrl, '_blank')} />
+              )}
+              {msg.videoUrl && (
+                <video src={msg.videoUrl} controls className="max-w-full rounded-lg mb-2" />
+              )}
+              {msg.documentUrl && (
+                <a href={msg.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-white/10 rounded-lg mb-2 hover:bg-white/20 transition-all text-[12px] font-medium">
+                  <Paperclip size={14} />
+                  <span className="truncate">View Document</span>
+                </a>
+              )}
+              {msg.body && <p>{msg.body}</p>}
               <span className={styles.timestamp}>
                 {format(new Date(msg.createdAt), 'h:mm a')}
               </span>

@@ -11,17 +11,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, description, isGroup, isPublicGroup, memberIds } = await req.json();
+    const { name, description, imageUrl, isGroup, isPublicGroup, memberIds } = await req.json();
 
     const conversation = await prisma.conversation.create({
       data: {
         name,
         description,
+        imageUrl,
         isGroup,
         isPublicGroup,
         members: {
           create: [
-            { userId: user.id, role: 'ADMIN' },
+            { userId: user.id, role: 'SUPER_ADMIN' },
             ...(memberIds || []).map((id: string) => ({ userId: id, role: 'MEMBER' }))
           ]
         }
