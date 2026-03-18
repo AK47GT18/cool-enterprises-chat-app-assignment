@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { X, Users, Shield, Globe, Loader2 } from 'lucide-react';
+import { X, Users, Shield, Globe, Loader2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CreateGroupModalProps {
@@ -43,75 +43,109 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="bg-slate-900/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] w-full max-w-md overflow-hidden relative"
           >
-            <div className="p-6 border-b flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <Users className="text-blue-600" />
-                <h2 className="text-xl font-bold text-slate-900">Create Group</h2>
+            {/* Header */}
+            <div className="px-8 pt-8 pb-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-blue-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                  <Users className="text-white w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-white tracking-tight">Create Group</h2>
+                  <p className="text-sm text-slate-400 font-medium tracking-wide">Start a new community</p>
+                </div>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+              <button
+                onClick={onClose}
+                className="p-2.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300"
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Group Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Project Phoenix"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+            <div className="px-5 py-0.5 space-y-6">
+              {/* Group Name Input Group */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-300 ml-0.5 uppercase tracking-[0.05em] opacity-60">Group Name</label>
+                <div className="relative group">
+                  <input
+                    type="text"
+                    placeholder="Enter a unique group name..."
+                    className="w-full bg-slate-950/50 border border-white/5 rounded-[12px] py-3.5 px-5 text-base font-medium text-white placeholder:text-slate-600 focus:outline-none focus:bg-slate-950/80 focus:border-blue-500/40 transition-all duration-300"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-slate-700">Privacy Settings</label>
-                
-                <button
-                  onClick={() => setIsPublic(false)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border transition-all ${!isPublic ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
-                >
-                  <Shield className={!isPublic ? 'text-blue-600' : 'text-slate-400'} />
-                  <div className="text-left">
-                    <p className={`font-semibold ${!isPublic ? 'text-blue-900' : 'text-slate-700'}`}>Private Group</p>
-                    <p className="text-xs text-slate-500">Only invited members can find and join this group.</p>
-                  </div>
-                </button>
+              {/* Privacy Settings */}
+              <div className="space-y-4">
+                <label className="text-[11px] font-black text-slate-300 ml-0.5 uppercase tracking-[0.05em] opacity-60">Privacy Settings</label>
 
-                <button
-                  onClick={() => setIsPublic(true)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border transition-all ${isPublic ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
-                >
-                  <Globe className={isPublic ? 'text-blue-600' : 'text-slate-400'} />
-                  <div className="text-left">
-                    <p className={`font-semibold ${isPublic ? 'text-blue-900' : 'text-slate-700'}`}>Public Group</p>
-                    <p className="text-xs text-slate-500">Anyone can search for and join this group.</p>
-                  </div>
-                </button>
+                <div className="grid gap-2.5">
+                  <button
+                    onClick={() => setIsPublic(false)}
+                    className={`group w-full flex items-center gap-4 p-4 rounded-[16px] border transition-all duration-300 ${!isPublic
+                        ? 'border-blue-500/50 bg-blue-500/10'
+                        : 'border-white/5 bg-slate-950/30 hover:bg-slate-950/50'
+                      }`}
+                  >
+                    <div className={`p-3 rounded-lg transition-all duration-300 ${!isPublic ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-500 group-hover:text-slate-400'}`}>
+                      <Shield size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="text-left">
+                      <p className={`text-[15px] font-bold tracking-tight ${!isPublic ? 'text-white' : 'text-slate-400'}`}>Private Group</p>
+                      <p className="text-[11px] text-slate-500 font-medium tracking-tight mt-0">Requires invitation to join</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setIsPublic(true)}
+                    className={`group w-full flex items-center gap-4 p-4 rounded-[16px] border transition-all duration-300 ${isPublic
+                        ? 'border-blue-500/50 bg-blue-500/10'
+                        : 'border-white/5 bg-slate-950/30 hover:bg-slate-950/50'
+                      }`}
+                  >
+                    <div className={`p-3 rounded-lg transition-all duration-300 ${isPublic ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-500 group-hover:text-slate-400'}`}>
+                      <Globe size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="text-left">
+                      <p className={`text-[15px] font-bold tracking-tight ${isPublic ? 'text-white' : 'text-slate-400'}`}>Public Group</p>
+                      <p className="text-[11px] text-slate-500 font-medium tracking-tight mt-0">Open for anyone to join</p>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="p-6 bg-slate-50 flex gap-3">
+            {/* Footer */}
+            <div className="p-5 mt-2 flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-all"
+                className="flex-1 px-4 py-3.5 rounded-[12px] font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300 active:scale-95 text-base"
               >
                 Cancel
               </button>
               <button
                 disabled={!name.trim() || loading}
                 onClick={handleCreate}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                className="flex-[1.5] px-5 py-3.5 rounded-[12px] font-black text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-500 flex items-center justify-center gap-2.5 active:scale-[0.98] group"
               >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Create Group'}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <>
+                    <span className="text-base tracking-tight">Create Group</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
               </button>
             </div>
           </motion.div>

@@ -1,131 +1,141 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn, ArrowRight, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { login } from '@/app/auth/actions';
+import React, { useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Mail, Lock, ArrowRight, Loader2, CircleDashed } from "lucide-react";
+import { signInWithPassword } from "../../../utils/supabase/actions";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setLoading(true);
-    setError(null);
+    setError("");
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
-    try {
-      const result = await login(formData);
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        router.push('/chat');
-      }
-    } catch (err) {
-      setError('Invalid email or password. Please try again.');
-    } finally {
+    const { error: authError } = await signInWithPassword(email, password);
+
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
+    } else {
+      window.location.href = "/";
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Premium Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px]" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-[0.03] pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-white">
+      {/* Noise Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3C%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+
+      {/* Soft blue ambient blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#2C6BED]/[0.08] blur-[140px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full bg-[#60A5FA]/[0.06] blur-[120px] pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md bg-slate-900/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] relative z-10"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="w-full max-w-xl z-10"
       >
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ scale: 0.8, rotate: -10 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 15 }}
-            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-blue-600 to-blue-400 rounded-3xl mb-6 shadow-2xl shadow-blue-500/30"
-          >
-            <LogIn className="text-white w-10 h-10" />
-          </motion.div>
-          <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">Welcome Back</h1>
-          <p className="text-slate-400 text-lg font-medium">Continue your conversations</p>
-        </div>
+        <div className="relative bg-white border border-[#E2E8F0] rounded-[24px] p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] overflow-hidden">
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
+          {/* Subtle Top Accent */}
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-[#2C6BED] to-transparent opacity-40" />
+
+          <div className="text-center mb-10">
             <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-xl text-sm"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center justify-center w-14 h-14 rounded-[16px] bg-gradient-to-br from-[#2C6BED] to-[#60A5FA] mb-4 shadow-[0_8px_20px_rgba(44,107,237,0.2)]"
             >
-              {error}
+              <CircleDashed className="text-white w-7 h-7 animate-spin-slow" />
             </motion.div>
-          )}
-
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-slate-300 ml-1 uppercase tracking-wider opacity-70">Email Address</label>
-            <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 group-focus-within:text-blue-400 transition-colors" />
-              <input
-                required
-                name="email"
-                type="email"
-                placeholder="name@company.com"
-                className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-slate-950/80 focus:border-blue-500/40 transition-all duration-300 shadow-inner"
-              />
-            </div>
+            <h1 className="text-2xl md:text-3xl font-black text-[#111827] tracking-tight mb-2">Welcome Back</h1>
+            <p className="text-sm text-[#6B7280] font-medium tracking-tight">Continue your journey with the circle</p>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex justify-between items-center ml-1">
-              <label className="text-sm font-semibold text-slate-300 uppercase tracking-wider opacity-70">Password</label>
-              <Link href="#" className="text-xs text-blue-400 hover:text-blue-300 font-bold transition-colors">
-                Forgot password?
-              </Link>
-            </div>
-            <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 group-focus-within:text-blue-400 transition-colors" />
-              <input
-                required
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-slate-950/80 focus:border-blue-500/40 transition-all duration-300 shadow-inner"
-              />
-            </div>
-          </div>
-
-          <button
-            disabled={loading}
-            type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-500/25 flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
-          >
-            {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
-            ) : (
-              <>
-                <span className="text-lg">Sign In</span>
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1.5 transition-transform duration-300" />
-              </>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-red-50 border border-red-100 text-red-600 p-3.5 rounded-lg text-sm font-semibold flex items-center gap-3 overflow-hidden"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {error}
+              </motion.div>
             )}
-          </button>
-        </form>
 
-        <p className="text-center mt-10 text-slate-400 text-sm">
-          Don't have an account?{' '}
-          <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
-            Create one
-          </Link>
-        </p>
+            <div className="space-y-5">
+              {/* Email Input Group */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-[#111827] uppercase tracking-[0.05em] ml-0.5 opacity-60">Email Address</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] w-5 h-5 group-focus-within:text-[#2C6BED] transition-all duration-300" />
+                  <input
+                    required
+                    name="email"
+                    type="email"
+                    placeholder="name@company.com"
+                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input Group */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-0.5">
+                  <label className="text-[11px] font-black text-[#111827] uppercase tracking-[0.05em] opacity-60">Password</label>
+                  <Link href="/auth/forgot-password" title="Recover your password" className="text-[15px] text-[#2C6BED] hover:text-[#1A56D6] font-black tracking-tight transition-colors">
+                    Forgot Password?
+                  </Link>
+                </div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] w-5 h-5 group-focus-within:text-[#2C6BED] transition-all duration-300" />
+                  <input
+                    required
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              disabled={loading}
+              type="submit"
+              className="w-full bg-[#2C6BED] hover:bg-[#1A56D6] text-white font-black py-4 rounded-[14px] flex items-center justify-center gap-2.5 transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98] transform"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={28} />
+              ) : (
+                <>
+                  <span className="text-xl tracking-tight">Access Account</span>
+                  <ArrowRight className="w-7 h-7 group-hover:translate-x-2 transition-transform duration-300" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-14 text-center">
+            <p className="text-[#6B7280] font-bold text-base tracking-tight">
+              New to the circle?{" "}
+              <Link href="/auth/register" className="text-[#2C6BED] hover:text-[#1A56D6] transition-all ml-1.5 font-black decoration-2 underline-offset-4 hover:underline">
+                Create Account
+              </Link>
+            </p>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
