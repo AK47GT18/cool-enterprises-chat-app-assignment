@@ -9,6 +9,8 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import CallModal from '@/components/Calls/CallModal';
 import { createClient } from '@/utils/supabase/client';
 import { useChatStore } from '@/hooks/useChatStore';
+import { LocalRealtimeService } from '@/services/local-realtime.service';
+import { decryptMessage } from '@/lib/encryption';
 
 interface ChatWindowProps {
   chat: { id: string; name: string; avatar: string; imageUrl?: string; online?: boolean; isGroup?: boolean } | null;
@@ -18,12 +20,15 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: ChatWindowProps) {
   const { isCalling, isIncoming, startCall, acceptCall, hangup, remoteStream } = useWebRTC(chat?.id || null);
-  const { currentUser } = useChatStore();
+  const { currentUser, presence, markAsSeen } = useChatStore();
   const [message, setMessage] = React.useState('');
   const [messages, setMessages] = React.useState<any[]>([]);
-  const [cursor, setCursor] = React.useState<string | null>(null);
+  const [fullChat, setFullChat] = React.useState<any>(null);
   const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const cursorRef = useRef<string | null>(null);
+  const loadingRef = useRef(false);
+  const setupChatIdRef = useRef<string | null>(null);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
   const [isUploading, setIsUploading] = React.useState(false);
@@ -31,6 +36,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const [lightboxImage, setLightboxImage] = React.useState<string | null>(null);
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [typingUsers, setTypingUsers] = React.useState<string[]>([]);
+  const websocketRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,6 +57,19 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, []);
 
+  const fetchFullChat = useCallback(async () => {
+    if (!chat?.id) return;
+    try {
+      const response = await fetch(`/api/conversations/${chat.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFullChat(data);
+      }
+    } catch (err) {
+      console.error("Error fetching full chat:", err);
+    }
+  }, [chat?.id]);
+
   React.useEffect(() => {
     let interval: any;
     if (isRecording) {
@@ -61,11 +81,20 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   }, [isRecording]);
 
   const fetchMessages = useCallback(async (overrideCursor?: string | null) => {
-    if (!chat || isLoadingMore) return;
-    const currentCursor = overrideCursor === undefined ? cursor : overrideCursor;
-    if (currentCursor === null && messages.length > 0) return; // Means no more and not initial fetch
+    if (!chat?.id || loadingRef.current) return;
+    
+    // Determine the cursor to use
+    const currentCursor = overrideCursor === undefined ? cursorRef.current : overrideCursor;
+    
+    // If we're trying to fetch more but have no cursor, we're done
+    if (currentCursor === null && messages.length > 0) {
+      setHasMore(false);
+      return;
+    }
 
-    setIsLoadingMore(true);
+    loadingRef.current = true;
+    if (!currentCursor) setIsLoadingMore(true); // Only show spinner for initial or large fetches if desired
+
     try {
       const url = new URL(`/api/conversations/${chat.id}/messages`, window.location.origin);
       if (currentCursor) {
@@ -79,67 +108,98 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       if (data.messages) {
         const fetchedMessages = data.messages.reverse();
         setMessages(prev => currentCursor ? [...fetchedMessages, ...prev] : fetchedMessages);
-        setCursor(data.nextCursor);
+        
+        cursorRef.current = data.nextCursor;
         setHasMore(!!data.nextCursor);
 
         if (!currentCursor) {
           setTimeout(scrollToBottom, 50);
         }
       }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
     } finally {
+      loadingRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [chat?.id, cursor, messages.length, isLoadingMore, scrollToBottom]);
+  }, [chat?.id, messages.length, scrollToBottom]);
 
-  // Initial fetch and Realtime Setup
+  // Setup chat on id change
   React.useEffect(() => {
-    if (!chat) return;
-    const supabase = supabaseRef.current;
+    if (!chat?.id || setupChatIdRef.current === chat.id) return;
+    
+    // Mark as handled for this ID to prevent loops
+    setupChatIdRef.current = chat.id;
 
-    // Reset state for new chat
+    // Reset local state for new chat
     setMessages([]);
-    setCursor(null);
+    cursorRef.current = null;
     setHasMore(true);
-    fetchMessages(''); // Pass empty string to act as falsy currentCursor but distinct from null check
+    
+    // Initial data fetch
+    fetchMessages(''); // Fetches first page
+    fetchFullChat();
+    
+    // Server-side mark as seen
+    fetch(`/api/conversations/${chat.id}/seen`, { method: 'POST' });
+    // Local-side mark as seen for instant UI update
+    markAsSeen(chat.id);
 
-    const channel = supabase
-      .channel(`chat:${chat.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'Message', filter: `conversationId=eq.${chat.id}` },
-        async (payload) => {
+  }, [chat?.id, fetchMessages, fetchFullChat, markAsSeen]);
+
+  // Realtime Setup (Local SSE)
+  React.useEffect(() => {
+    if (!chat?.id || !currentUser?.id) return;
+
+    const subscription = LocalRealtimeService.subscribe((eventName, data) => {
+      // Filter typing events for this chat
+      if (data.conversationId !== chat.id) return;
+
+      switch(eventName) {
+        case 'message:new':
           setMessages((current) => {
-            if (current.some(m => m.id === payload.new.id)) return current;
-            supabase
-              .from('User')
-              .select('username, image')
-              .eq('id', payload.new.senderId)
-              .single()
-              .then(({ data: sender }) => {
-                setMessages((prev) => {
-                  const optimisticIdx = prev.findIndex(m => m._optimistic && m.body === payload.new.body && m.senderId === payload.new.senderId);
-                  if (optimisticIdx >= 0) {
-                    const updated = [...prev];
-                    updated[optimisticIdx] = { ...payload.new, sender };
-                    return updated;
-                  }
-                  if (prev.some(m => m.id === payload.new.id)) return prev;
-                  return [...prev, { ...payload.new, sender }];
-                });
-                setTimeout(scrollToBottom, 50);
-              });
-            return current;
+            if (current.some(m => m.id === data.id)) return current;
+            
+            // Decrypt the body
+            const decryptedBody = data.body ? decryptMessage(data.body) : data.body;
+            
+            // Resolve sender info
+            let sender = data.sender;
+            if (!sender) {
+              if (data.senderId === currentUser?.id) {
+                sender = { username: currentUser.username || 'You', image: currentUser.image };
+              } else {
+                const member = fullChat?.members?.find((m: any) => m.userId === data.senderId);
+                sender = member?.user || { username: 'Someone', image: null };
+              }
+            }
+
+            // When a real message arrives, remove any optimistic message with same body and sender
+            const filtered = current.filter(m => !(m._optimistic && m.body === decryptedBody && m.senderId === data.senderId));
+            return [...filtered, { ...data, body: decryptedBody, sender }];
           });
-        }
-      )
-      .subscribe();
+          setTimeout(scrollToBottom, 50);
+          markAsSeen(chat.id);
+          fetch(`/api/conversations/${chat.id}/seen`, { method: 'POST' });
+          break;
+
+        case 'typing:start':
+          if (data.userId !== currentUser.id) {
+            setTypingUsers(prev => Array.from(new Set([...prev, data.userId])));
+            setTimeout(scrollToBottom, 50);
+          }
+          break;
+
+        case 'typing:stop':
+          setTypingUsers(prev => prev.filter(id => id !== data.userId));
+          break;
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription.cleanup();
     };
-  }, [chat?.id]); // EXCLUDE fetchMessages because we want this to run strictly on chat change
+  }, [chat?.id, currentUser, fullChat, markAsSeen, scrollToBottom]);
 
   // Intersection Observer for Infinite Scroll
   React.useEffect(() => {
@@ -157,6 +217,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     }
     return () => observer.disconnect();
   }, [fetchMessages, hasMore, isLoadingMore, messages.length]);
+
+
 
   const startRecording = async () => {
     try {
@@ -250,9 +312,12 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         body: JSON.stringify({
           body,
           conversationId: chat.id,
+          replyToId: replyingTo?.id,
           ...attachments
         })
       });
+      setReplyingTo(null);
+      LocalRealtimeService.setTyping(chat.id, false);
     } catch (error) {
       console.error("Failed to send message:", error);
       // Remove optimistic message on failure
@@ -294,6 +359,19 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     }
   };
 
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      await fetch(`/api/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+      });
+      // Realtime will handle the update
+    } catch (error) {
+      console.error("Failed to toggle reaction:", error);
+    }
+  };
+
   if (!chat) {
     return (
       <div className={clsx(styles.emptyState, !isMobileWindowVisible && styles.hiddenOnMobile)}>
@@ -320,7 +398,14 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           />
           <div className={styles.userInfo}>
             <h2>{chat.name}</h2>
-            <span className={styles.status}>{chat.isGroup ? 'Group' : (chat.online ? 'Online' : 'offline')}</span>
+            <span className={styles.status}>
+              {chat.isGroup ? 'Group Chat' : (
+                (() => {
+                  const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
+                  return (otherMember && presence[otherMember.userId]) ? 'Online' : 'Offline';
+                })()
+              )}
+            </span>
           </div>
         </div>
         <div className={styles.headerRight}>
@@ -350,6 +435,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             ) : null}
           </div>
         )}
+
+
         <div className={styles.dateLabel}>Today</div>
 
         {messages.map((msg, index) => (
@@ -364,6 +451,14 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
               styles.messageBubble, 
               msg.senderId === currentUser?.id ? styles.sent : styles.received
             )}>
+              {/* Reply Reference */}
+              {msg.replyTo && (
+                <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-blue-500 text-[11px] opacity-80 italic">
+                  <p className="font-bold">@{msg.replyTo.sender.username}</p>
+                  <p className="truncate">{msg.replyTo.body}</p>
+                </div>
+              )}
+
               {chat.isGroup && msg.senderId !== currentUser?.id && (
                 <span className="text-[10px] font-bold text-blue-400 block mb-1">
                    @{msg.sender?.username || 'user'}
@@ -385,13 +480,65 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                 <audio src={msg.voiceNoteUrl} controls className="max-w-full h-10 mb-2 filter drop-shadow-sm [&::-webkit-media-controls-enclosure]:bg-black/5 [&::-webkit-media-controls-enclosure]:rounded-full" />
               )}
               {msg.body && renderMessageBody(msg.body)}
-              <span className={styles.timestamp}>
-                {format(new Date(msg.createdAt), 'h:mm a')}
-              </span>
+              
+              <div className="flex items-center justify-between mt-1 gap-4">
+                {/* Reactions */}
+                <div className="flex gap-1 flex-wrap">
+                  {msg.reactions?.map((r: any) => (
+                    <span key={r.id} className="text-[12px] bg-white/20 px-1.5 py-0.5 rounded-full shadow-sm">
+                      {r.emoji}
+                    </span>
+                  ))}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="relative group/emoji">
+                    <button className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white">
+                      <Smile size={14} />
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 p-1 bg-white rounded-full shadow-xl border border-slate-200 hidden group-hover/emoji:flex items-center gap-1 z-50">
+                      {['❤️', '👍', '🔥', '😂', '😮'].map(emoji => (
+                        <button 
+                          key={emoji} 
+                          onClick={() => handleReaction(msg.id, emoji)}
+                          className="hover:scale-125 transition-transform p-1 text-sm"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setReplyingTo(msg)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white"
+                  >
+                    <Reply size={14} />
+                  </button>
+                  <span className={styles.timestamp}>
+                    {format(new Date(msg.createdAt), 'h:mm a')}
+                  </span>
+                </div>
+              </div>
             </div>
           </motion.div>
         ))}
         <div ref={messagesEndRef} />
+        
+        {typingUsers.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-6 py-4"
+          >
+            <div className="flex items-center gap-3 text-[11px] font-bold text-slate-400">
+              <div className="flex gap-1 bg-slate-100 rounded-full px-3 py-2 shadow-sm border border-slate-200/50">
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Recording UI */}
@@ -413,6 +560,29 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           />
         </motion.div>
       )}
+
+      {/* Replying To Bar */}
+      <AnimatePresence>
+        {replyingTo && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-6 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-1 h-8 bg-blue-500 rounded-full" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Replying to @{replyingTo.sender.username}</p>
+                <p className="text-xs text-slate-500 truncate font-medium">{replyingTo.body || 'Media attachment'}</p>
+              </div>
+            </div>
+            <button onClick={() => setReplyingTo(null)} className="p-1.5 hover:bg-slate-200 rounded-full transition-colors">
+              <X size={16} className="text-slate-400" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input Area */}
       <div className={styles.inputArea}>
@@ -441,6 +611,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             onChange={(e) => {
               setMessage(e.target.value);
               autoResize();
+              LocalRealtimeService.setTyping(chat.id, e.target.value.length > 0);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

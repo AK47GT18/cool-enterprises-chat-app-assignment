@@ -85,6 +85,9 @@ model ContactRequest {
 
   sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId, receiverId])
 }
 
 model Reaction {
@@ -121,4 +124,5 @@ enum RequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+  BLOCKED
 }

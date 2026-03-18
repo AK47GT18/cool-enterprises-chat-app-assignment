@@ -46,8 +46,8 @@ export async function GET(
     }
 
     return NextResponse.json(conversation);
-  } catch (error) {
-    console.error("[CONVERSATION_GET]", error);
+  } catch (err) {
+    console.error("[CONVERSATION_GET]", err);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

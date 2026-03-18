@@ -7,8 +7,8 @@ export async function POST(
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const { user, errorResponse } = await SessionService.requireAuth();
-    if (errorResponse) return errorResponse;
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
 
     const { messageId } = await params;
     const { emoji } = await req.json();

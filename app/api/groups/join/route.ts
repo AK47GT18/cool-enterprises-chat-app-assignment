@@ -4,8 +4,8 @@ import { SessionService } from '@/services/session.service';
 
 export async function POST(req: Request) {
   try {
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     const { inviteCode } = await req.json();
 

@@ -1,21 +1,25 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { decryptMessage } from '@/lib/encryption';
+import { LocalRealtimeService } from '@/services/local-realtime.service';
 
 interface ChatStore {
   conversations: any[];
   currentUser: any;
+  presence: Record<string, any>;
   loading: boolean;
   refreshConversations: () => Promise<void>;
+  markAsSeen: (conversationId: string) => void;
 }
 
 const ChatStoreContext = createContext<ChatStore>({
   conversations: [],
   currentUser: null,
+  presence: {},
   loading: true,
   refreshConversations: async () => {},
+  markAsSeen: () => {},
 });
 
 export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
@@ -24,6 +28,23 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const fetchedRef = useRef(false);
 
+  const markAsSeen = useCallback((conversationId: string) => {
+    setConversations(current => {
+      return current.map(c => {
+        if (c.id === conversationId) {
+          const updatedMembers = c.members?.map((m: any) => {
+            if (m.userId === currentUser?.id) {
+              return { ...m, hasSeenLatest: true };
+            }
+            return m;
+          });
+          return { ...c, members: updatedMembers };
+        }
+        return c;
+      });
+    });
+  }, [currentUser?.id]);
+
   const fetchConversations = useCallback(async () => {
     try {
       const response = await fetch('/api/conversations');
@@ -31,40 +52,26 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
         setConversations(data);
       }
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
+    } catch (err) {
+      console.error("Error fetching conversations:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const [presence, setPresence] = useState<Record<string, any>>({});
+
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    const supabase = createClient();
-
-    // Fetch current user once via profile API
-    fetch('/api/user/profile')
-      .then(res => res.ok ? res.json() : null)
-      .then(user => {
-        if (user) setCurrentUser(user);
-      });
-
-    // Fetch conversations once
-    fetchConversations();
-
-    // Realtime: only update on actual changes
-    const channel = supabase
-      .channel('global_store')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'Message' },
-        (payload: any) => {
-          const decryptedBody = payload.new.body ? decryptMessage(payload.new.body) : payload.new.body;
+    if (!currentUser) return;
+    
+    // Subscribe to local SSE realtime
+    const subscription = LocalRealtimeService.subscribe((eventName, data) => {
+      switch(eventName) {
+        case 'message:new': {
+          const decryptedBody = data.body ? decryptMessage(data.body) : data.body;
           
           setConversations(current => {
-            const index = current.findIndex(c => c.id === payload.new.conversationId);
+            const index = current.findIndex(c => c.id === data.conversationId);
             if (index === -1) {
                fetchConversations();
                return current;
@@ -72,39 +79,80 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
             const updated = [...current];
             const chat = { ...updated[index] };
             
-            // Just update the latest message block for the ChatList preview
+            // Resolve sender
+            let sender = data.sender;
+            if (!sender) {
+              if (data.senderId === currentUser.id) {
+                sender = { username: currentUser.username || 'You', image: currentUser.image };
+              } else {
+                sender = { username: 'Someone', image: null }; // Fallback for list
+              }
+            }
+
             chat.messages = [{ 
-              ...payload.new, 
+              ...data, 
               body: decryptedBody,
-              sender: { username: 'Someone', image: null } // Mocked sender for preview
+              sender
             }];
             
             updated[index] = chat;
-            // Move conversation to top
+            // Move to top
             const [moved] = updated.splice(index, 1);
             return [moved, ...updated];
           });
+          break;
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Conversation' },
-        () => fetchConversations()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'UserConversation' },
-        () => fetchConversations()
-      )
-      .subscribe();
+
+        case 'message:seen': {
+          setConversations(current => {
+            return current.map(c => {
+              if (c.id === data.conversationId) {
+                const updatedMembers = c.members?.map((m: any) => {
+                  if (m.userId === data.userId) {
+                    return { ...m, hasSeenLatest: true };
+                  }
+                  return m;
+                });
+                return { ...c, members: updatedMembers };
+              }
+              return c;
+            });
+          });
+          break;
+        }
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription.cleanup();
     };
+  }, [currentUser, fetchConversations]);
+
+  // Initial fetch for user and convos
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    
+    fetch('/api/user/profile')
+      .then(res => res.ok ? res.json() : null)
+      .then(user => {
+        if (user) setCurrentUser(user);
+      });
+
+    fetchConversations();
   }, [fetchConversations]);
 
+  const value = React.useMemo(() => ({ 
+    conversations, 
+    currentUser, 
+    presence, 
+    loading, 
+    refreshConversations: fetchConversations,
+    markAsSeen
+  }), [conversations, currentUser, presence, loading, fetchConversations, markAsSeen]);
+
   return (
-    <ChatStoreContext.Provider value={{ conversations, currentUser, loading, refreshConversations: fetchConversations }}>
+    <ChatStoreContext.Provider value={value}>
       {children}
     </ChatStoreContext.Provider>
   );

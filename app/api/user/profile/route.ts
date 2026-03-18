@@ -19,8 +19,8 @@ export async function GET() {
     });
 
     return NextResponse.json(profile);
-  } catch (error) {
-    console.error("[USER_PROFILE_GET]", error);
+  } catch (err) {
+    console.error("[USER_PROFILE_GET]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
@@ -42,8 +42,8 @@ export async function PATCH(req: Request) {
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error("[USER_PROFILE_PATCH]", error);
+  } catch (err) {
+    console.error("[USER_PROFILE_PATCH]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

@@ -7,7 +7,21 @@ import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff, Loader2, CircleDashed, ArrowRight, ArrowLeft } from "lucide-react";
 import { resetPassword } from "@/app/auth/actions";
 
+import { Suspense } from "react";
+
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-blue-500" size={40} />
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [loading, setLoading] = useState(false);
@@ -38,8 +52,8 @@ export default function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center p-4 bg-white">
-        <div className="text-center space-y-4">
+      <div className="min-h-screen w-full flex items-center justify-center p-4 bg-white text-center">
+        <div className="space-y-4">
           <h1 className="text-2xl font-black text-red-500">Invalid Link</h1>
           <p className="text-slate-500">This password reset link is missing its token.</p>
           <Link href="/auth/login" className="text-blue-500 font-bold hover:underline">

@@ -8,12 +8,13 @@ import { useChatStore } from '@/hooks/useChatStore';
 interface ChatListProps {
   activeChatId: string | null;
   onSelectChat: (id: string, chat: any) => void;
+  onNewChat: () => void;
   isMobileListVisible: boolean;
 }
 
-export default function ChatList({ activeChatId, onSelectChat, isMobileListVisible }: ChatListProps) {
+export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobileListVisible }: ChatListProps) {
   const [mounted, setMounted] = useState(false);
-  const { conversations, loading } = useChatStore();
+  const { conversations, presence, currentUser, loading } = useChatStore();
 
   React.useEffect(() => {
     setMounted(true);
@@ -25,7 +26,7 @@ export default function ChatList({ activeChatId, onSelectChat, isMobileListVisib
         <div className={styles.titleRow}>
           <h2>Messages</h2>
           <div className={styles.actions}>
-            <button className={styles.iconBtn} aria-label="New Chat"><Plus size={20} /></button>
+            <button onClick={onNewChat} className={styles.iconBtn} aria-label="New Chat"><Plus size={20} /></button>
             <button className={styles.iconBtn} aria-label="More options"><MoreVertical size={20} /></button>
           </div>
         </div>
@@ -49,7 +50,17 @@ export default function ChatList({ activeChatId, onSelectChat, isMobileListVisib
           </div>
         ) : conversations.map(chat => {
           const lastMessage = chat.messages?.[0];
-          const unreadCount = chat.members?.find((m: any) => m.hasSeenLatest === false) ? 1 : 0;
+          const myMember = chat.members?.find((m: any) => m.userId === currentUser?.id);
+          const unreadCount = myMember?.hasSeenLatest === false ? 1 : 0;
+          
+          // Basic online check for 1-on-1 chats
+          let isOnline = false;
+          if (!chat.isGroup) {
+            const otherMember = chat.members?.find((m: any) => m.userId !== currentUser?.id);
+            if (otherMember && presence[otherMember.userId]) {
+              isOnline = true;
+            }
+          }
           
           return (
             <div 
@@ -63,7 +74,7 @@ export default function ChatList({ activeChatId, onSelectChat, isMobileListVisib
                   alt={chat.name} 
                   className={styles.avatar} 
                 />
-                {chat.online && <span className={styles.onlineIndicator}></span>}
+                {isOnline && <span className={styles.onlineIndicator}></span>}
               </div>
               
               <div className={styles.chatInfo}>

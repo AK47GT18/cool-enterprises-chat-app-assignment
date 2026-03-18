@@ -6,8 +6,8 @@ import { decryptMessage } from '@/lib/encryption';
 
 export async function POST(req: Request) {
   try {
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     const { name, description, imageUrl, isGroup, isPublicGroup, memberIds } = await req.json();
 
@@ -35,8 +35,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(conversation);
-  } catch (error) {
-    console.error("[CONVERSATIONS_POST]", error);
+  } catch (err) {
+    console.error("[CONVERSATIONS_POST]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
@@ -47,8 +47,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     if (id) {
       const conversation = await prisma.conversation.findUnique({
@@ -135,8 +135,8 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(formattedConversations);
-  } catch (error) {
-    console.error("[CONVERSATIONS_GET]", error);
+  } catch (err) {
+    console.error("[CONVERSATIONS_GET]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

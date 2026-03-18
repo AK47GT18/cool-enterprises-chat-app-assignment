@@ -93,6 +93,42 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
     }
   };
 
+  const handleLeaveConversation = async () => {
+    if (!confirm("Are you sure you want to leave this conversation?")) return;
+    try {
+      const response = await fetch(`/api/conversations/${chat?.id}/leave`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        onClose();
+        window.location.reload(); // Refresh to update list
+      }
+    } catch (error) {
+      console.error("Error leaving conversation:", error);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!chat || chat.isGroup) return;
+    const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
+    if (!otherMember) return;
+
+    if (!confirm(`Are you sure you want to block @${otherMember.user.username}?`)) return;
+    try {
+      const response = await fetch(`/api/users/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: otherMember.userId })
+      });
+      if (response.ok) {
+        alert("User blocked successfully.");
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error blocking user:", error);
+    }
+  };
+
   const handleCopyInviteCode = () => {
     if (fullChat?.inviteCode) {
       navigator.clipboard.writeText(fullChat.inviteCode);
@@ -217,6 +253,25 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                     {copied ? '✓' : <Copy size={14} />}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="w-full mt-8 space-y-3 pt-6 border-t border-slate-100">
+                <button 
+                  onClick={handleLeaveConversation}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 text-red-600 font-bold text-sm hover:bg-red-100 transition-colors"
+                >
+                  <UserMinus size={18} /> {chat.isGroup ? 'Leave Group' : 'Delete Chat'}
+                </button>
+                {!chat.isGroup && (
+                  <button 
+                    onClick={handleBlockUser}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition-colors"
+                  >
+                    <ShieldAlert size={18} /> Block User
+                  </button>
+                )}
               </div>
             )}
 

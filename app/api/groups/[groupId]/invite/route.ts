@@ -8,49 +8,42 @@ export async function POST(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
-    const { user, errorResponse } = await SessionService.requireAuth();
-    if (errorResponse) return errorResponse;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     const { groupId } = await params;
     const { email } = await req.json();
 
-    if (!email) return new NextResponse("Email required", { status: 400 });
-
     const group = await prisma.conversation.findUnique({
       where: { id: groupId, isGroup: true },
-      include: {
-        members: true
+      include: { members: true }
+    });
+
+    if (!group) {
+      return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+    }
+
+    const isAdmin = group.members.find(m => m.userId === user.id && m.role === 'ADMIN');
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const userToInvite = await prisma.user.findUnique({ where: { email } });
+    if (!userToInvite) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    await prisma.userConversation.create({
+      data: {
+        userId: userToInvite.id,
+        conversationId: groupId,
+        role: 'MEMBER'
       }
     });
 
-    if (!group) return new NextResponse("Group not found", { status: 404 });
-
-    // Ensure the inviter is at least an admin
-    const member = group.members.find(m => m.userId === user.id);
-    if (!member || (member.role !== 'ADMIN' && member.role !== 'SUPER_ADMIN')) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    // Generate the join link
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const inviteLink = `${baseUrl}/groups/join/${group.inviteCode}`;
-
-    const { success, error } = await EmailService.sendGroupInvite(
-      email,
-      group.name || "A Private Group",
-      inviteLink,
-      user?.username || "A Friend"
-    );
-
-    if (!success) {
-      console.error("[GROUP_INVITE_EMAIL]", error);
-      return new NextResponse("Failed to dispatch email", { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error) {
-    console.error("[GROUP_INVITE]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ message: 'User invited' });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

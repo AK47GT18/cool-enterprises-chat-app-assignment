@@ -7,8 +7,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');
 
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     const where: any = {
       AND: [
@@ -37,8 +37,8 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(users);
-  } catch (error) {
-    console.error("[USERS_SEARCH_GET]", error);
+  } catch (err) {
+    console.error("[USERS_SEARCH_GET]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

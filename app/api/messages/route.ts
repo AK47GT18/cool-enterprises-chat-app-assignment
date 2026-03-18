@@ -5,8 +5,8 @@ import { MessageService } from '@/services/message.service';
 
 export async function POST(req: Request) {
   try {
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     const { body, conversationId, imageUrl, videoUrl, documentUrl, voiceNoteUrl } = await req.json();
 
@@ -24,6 +24,10 @@ export async function POST(req: Request) {
       senderId: user.id,
     });
 
+    // Notify local realtime bus
+    const { realtimeBus, REALTIME_EVENTS } = await import('@/lib/realtime-bus');
+    realtimeBus.emit(REALTIME_EVENTS.MESSAGE_NEW, message);
+
     // Update unread status for other members
     await prisma.userConversation.updateMany({
       where: {
@@ -38,8 +42,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(message);
-  } catch (error) {
-    console.error("[MESSAGES_POST]", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  } catch (err) {
+    console.error("[MESSAGES_POST]", err);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }

@@ -14,8 +14,8 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get('cursor');
 
-    const { user, error } = await SessionService.requireAuth();
-    if (error) return error;
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
 
     // Verify membership
     const member = await prisma.userConversation.findUnique({
@@ -47,13 +47,37 @@ export async function GET(
             username: true,
             image: true,
           }
-        }
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                username: true,
+                image: true,
+              }
+            }
+          }
+        },
+        reactions: true
       }
     });
 
+    const decryptSafe = (body: string | null) => {
+      if (!body) return body;
+      try {
+        return decryptMessage(body);
+      } catch (e) {
+        return body; // Fallback to raw if decryption fails
+      }
+    };
+
     const decryptedMessages = messages.map(msg => ({
       ...msg,
-      body: msg.body ? decryptMessage(msg.body) : msg.body
+      body: decryptSafe(msg.body),
+      replyTo: msg.replyTo ? {
+        ...msg.replyTo,
+        body: decryptSafe(msg.replyTo.body)
+      } : null
     }));
 
     let nextCursor = null;
@@ -67,8 +91,8 @@ export async function GET(
       nextCursor
     });
 
-  } catch (error) {
-    console.error("[MESSAGES_GET]", error);
+  } catch (err) {
+    console.error("[MESSAGES_GET]", err);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

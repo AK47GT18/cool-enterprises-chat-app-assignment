@@ -12,20 +12,32 @@ import CallsTab from "@/components/Sidebar/CallsTab";
 import GroupsTab from "@/components/Sidebar/GroupsTab";
 import ProfileTab from "@/components/Sidebar/ProfileTab";
 import CreateGroupModal from "@/components/Groups/CreateGroupModal";
-import { ChatStoreProvider } from "@/hooks/useChatStore";
+import NewChatModal from "@/components/Modals/NewChatModal";
+import { ChatStoreProvider, useChatStore } from "@/hooks/useChatStore";
 
 type MobileView = "list" | "chat" | "info";
 
 export default function Home() {
+  return (
+    <ChatStoreProvider>
+      <MainContent />
+    </ChatStoreProvider>
+  );
+}
+
+function MainContent() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [activeSidebarTab, setActiveSidebarTab] = useState("chats");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   
   // Chat state
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   
   // Mobile responsive view state
   const [mobileView, setMobileView] = useState<MobileView>("list");
+
+  const { refreshConversations } = useChatStore();
 
   // Handle system theme detection on mount
   useEffect(() => {
@@ -53,58 +65,82 @@ export default function Home() {
     setMobileView("list");
   };
 
+  const handleStartChat = async (user: any) => {
+    try {
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      if (response.ok) {
+        const chat = await response.json();
+        await refreshConversations();
+        setSelectedChat(chat);
+        setIsNewChatModalOpen(false);
+        setMobileView("chat");
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
+    }
+  };
+
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
-    <ChatStoreProvider>
-      <div className={styles.appContainer}>
-        <div className={styles.floatingWrapper}>
-          <Sidebar 
-            activeTab={activeSidebarTab} 
-            setActiveTab={setActiveSidebarTab} 
-            toggleTheme={toggleTheme} 
+    <div className={styles.appContainer}>
+      <div className={styles.floatingWrapper}>
+        <Sidebar 
+          activeTab={activeSidebarTab} 
+          setActiveTab={setActiveSidebarTab} 
+          toggleTheme={toggleTheme} 
+        />
+
+        {activeSidebarTab === 'chats' && (
+          <ChatList 
+            activeChatId={selectedChat?.id || null} 
+            onSelectChat={handleSelectChat}
+            onNewChat={() => setIsNewChatModalOpen(true)}
+            isMobileListVisible={mobileView === "list"}
           />
+        )}
 
-          {activeSidebarTab === 'chats' && (
-            <ChatList 
-              activeChatId={selectedChat?.id || null} 
-              onSelectChat={handleSelectChat}
-              isMobileListVisible={mobileView === "list"}
-            />
-          )}
+        {activeSidebarTab === 'hollers' && <HollersTab />}
+        {activeSidebarTab === 'status' && <ContactList />}
+        {activeSidebarTab === 'calls' && <CallsTab />}
+        {activeSidebarTab === 'groups' && (
+          <GroupsTab 
+            onOpenCreateModal={() => setIsCreateGroupOpen(true)} 
+            activeGroupId={selectedChat?.id}
+            onSelectGroup={handleSelectChat}
+          />
+        )}
+        {activeSidebarTab === 'profile' && <ProfileTab />}
+        
+        <ChatWindow 
+          chat={selectedChat} 
+          onBack={handleBackToList}
+          isMobileWindowVisible={mobileView === "chat"}
+        />
 
-          {activeSidebarTab === 'hollers' && <HollersTab />}
-          {activeSidebarTab === 'status' && <ContactList />}
-          {activeSidebarTab === 'calls' && <CallsTab />}
-          {activeSidebarTab === 'groups' && (
-            <GroupsTab 
-              onOpenCreateModal={() => setIsCreateGroupOpen(true)} 
-              activeGroupId={selectedChat?.id}
-              onSelectGroup={handleSelectChat}
-            />
-          )}
-          {activeSidebarTab === 'profile' && <ProfileTab />}
-          
-          <ChatWindow 
+        <CreateGroupModal 
+          isOpen={isCreateGroupOpen} 
+          onClose={() => setIsCreateGroupOpen(false)} 
+        />
+        
+        <NewChatModal 
+          isOpen={isNewChatModalOpen}
+          onClose={() => setIsNewChatModalOpen(false)}
+          onSelectUser={handleStartChat}
+        />
+
+        <div className={styles.rightPanelWrapper}>
+          <RightPanel 
             chat={selectedChat} 
-            onBack={handleBackToList}
-            isMobileWindowVisible={mobileView === "chat"}
+            onClose={() => setIsRightPanelOpen(false)} 
+            isVisible={!!selectedChat && isRightPanelOpen} 
           />
-
-          <CreateGroupModal 
-            isOpen={isCreateGroupOpen} 
-            onClose={() => setIsCreateGroupOpen(false)} 
-          />
-          
-          <div className={styles.rightPanelWrapper}>
-            <RightPanel 
-              chat={selectedChat} 
-              onClose={() => setIsRightPanelOpen(false)} 
-              isVisible={!!selectedChat && isRightPanelOpen} 
-            />
-          </div>
         </div>
       </div>
-    </ChatStoreProvider>
+    </div>
   );
 }

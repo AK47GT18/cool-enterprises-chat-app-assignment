@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
+import { decryptMessage } from '@/lib/encryption';
 
 /**
  * Client-side Realtime Service for Supabase WebSockets.
@@ -16,10 +17,16 @@ export const WebSocketService = {
 
     // DB Changes
     channel
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Message', filter: `conversationId=eq.${conversationId}` }, payload => {
-        callbacks.onMessage?.(payload);
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Message' }, payload => {
+        // Filter locally
+        if (payload.new.conversationId !== conversationId) return;
+        
+        const decryptedBody = payload.new.body ? decryptMessage(payload.new.body) : payload.new.body;
+        callbacks.onMessage?.({ ...payload, new: { ...payload.new, body: decryptedBody } });
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Message', filter: `conversationId=eq.${conversationId}` }, payload => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Message' }, payload => {
+        // Filter locally
+        if (payload.new.conversationId !== conversationId) return;
         callbacks.onMessageUpdate?.(payload);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Reaction' }, payload => {
@@ -52,7 +59,10 @@ export const WebSocketService = {
         await channel.track({ userId, typing: isTyping, onlineAt: new Date().toISOString() });
       },
       cleanup: () => {
-        supabase.removeChannel(channel);
+        // Explicitly untrack to clear typing status for others
+        channel.untrack().then(() => {
+          supabase.removeChannel(channel);
+        });
       }
     };
   }
