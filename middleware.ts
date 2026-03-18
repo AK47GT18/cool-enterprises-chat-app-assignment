@@ -35,21 +35,21 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect chat and settings routes
-  if (request.nextUrl.pathname.startsWith('/chat') || request.nextUrl.pathname.startsWith('/settings')) {
+  // Protect settings routes
+  if (request.nextUrl.pathname.startsWith('/settings')) {
     if (!user) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
   }
 
-  // Redirect authenticated users away from auth pages
-  if (request.nextUrl.pathname.startsWith('/auth') && user) {
-    return NextResponse.redirect(new URL('/chat', request.url));
+  // Redirect unauthenticated users from root to login
+  if (request.nextUrl.pathname === '/' && !user) {
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
-  // Handle root redirect
-  if (request.nextUrl.pathname === '/' && user) {
-    return NextResponse.redirect(new URL('/chat', request.url));
+  // Redirect authenticated users away from auth pages
+  if (request.nextUrl.pathname.startsWith('/auth') && user) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return response;

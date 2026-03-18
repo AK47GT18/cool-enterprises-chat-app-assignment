@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const requests = await prisma.contactRequest.findMany({
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     return NextResponse.json(requests);
   } catch (error) {
     console.error("[CONTACT_REQUESTS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
 
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { receiverId, privacyCode } = await req.json();
@@ -58,13 +58,13 @@ export async function POST(req: Request) {
         where: { privacyCode }
       });
       if (!targetUser) {
-        return new NextResponse("Invalid privacy code", { status: 404 });
+        return NextResponse.json({ error: "Invalid privacy code" }, { status: 404 });
       }
       targetUserId = targetUser.id;
     }
 
     if (!targetUserId) {
-      return new NextResponse("Receiver ID or privacy code is required", { status: 400 });
+      return NextResponse.json({ error: "Receiver ID or privacy code is required" }, { status: 400 });
     }
 
     const existingRequest = await prisma.contactRequest.findFirst({
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     });
 
     if (existingRequest) {
-      return new NextResponse("Request already exists", { status: 400 });
+      return NextResponse.json({ error: "Request already exists" }, { status: 400 });
     }
 
     const request = await prisma.contactRequest.create({
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     return NextResponse.json(request);
   } catch (error) {
     console.error("[CONTACT_REQUESTS_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
 
@@ -101,13 +101,13 @@ export async function PATCH(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { requestId, status } = await req.json();
 
     if (!['ACCEPTED', 'REJECTED'].includes(status)) {
-      return new NextResponse("Invalid status", { status: 400 });
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     const request = await prisma.contactRequest.findUnique({
@@ -116,7 +116,7 @@ export async function PATCH(req: Request) {
     });
 
     if (!request || request.receiverId !== user.id) {
-      return new NextResponse("Not found or unauthorized", { status: 404 });
+      return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
     }
 
     const updatedRequest = await prisma.contactRequest.update({
@@ -141,6 +141,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json(updatedRequest);
   } catch (error) {
     console.error("[CONTACT_REQUESTS_PATCH]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import styles from './ChatWindow.module.css';
 import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, Send, Mic } from 'lucide-react';
 import clsx from 'clsx';
@@ -22,6 +22,14 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const [messages, setMessages] = React.useState<any[]>([]);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }, []);
 
   React.useEffect(() => {
     let interval: any;
@@ -43,8 +51,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     const fetchMessages = async () => {
       try {
         const response = await fetch(`/api/conversations?id=${chat.id}`);
+        if (!response.ok) return;
         const data = await response.json();
-        // Assuming the API returns conversation with messages
         if (data.messages) {
           setMessages(data.messages.reverse());
         }
@@ -177,13 +185,26 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         <button className={styles.iconBtn}><Paperclip size={24} /></button>
         <div className={styles.inputWrapper}>
           <button className={styles.insideIconBtn}><Smile size={24} /></button>
-          <input 
-            type="text" 
+          <textarea 
+            ref={textareaRef}
+            rows={1}
             placeholder="Write a message..." 
             className={styles.msgInput} 
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              autoResize();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+                // Reset height after sending
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = 'auto';
+                }
+              }
+            }}
           />
         </div>
         <AnimatePresence mode="wait">

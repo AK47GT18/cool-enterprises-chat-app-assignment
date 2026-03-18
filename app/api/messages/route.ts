@@ -10,13 +10,13 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { body, conversationId, imageUrl, videoUrl, documentUrl, voiceNoteUrl } = await req.json();
 
     if (!conversationId) {
-      return new NextResponse("Conversation ID is required", { status: 400 });
+      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
     }
 
     const message = await prisma.message.create({
@@ -50,6 +50,6 @@ export async function POST(req: Request) {
     return NextResponse.json(message);
   } catch (error) {
     console.error("[MESSAGES_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

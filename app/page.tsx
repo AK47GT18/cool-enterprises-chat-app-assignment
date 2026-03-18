@@ -9,6 +9,7 @@ import RightPanel from "@/components/RightPanel/RightPanel";
 import HollersTab from "@/components/Sidebar/HollersTab";
 import ContactList from "@/components/Sidebar/ContactList";
 import CallsTab from "@/components/Sidebar/CallsTab";
+import GroupsTab from "@/components/Sidebar/GroupsTab";
 import CreateGroupModal from "@/components/Groups/CreateGroupModal";
 
 type MobileView = "list" | "chat" | "info";
@@ -75,15 +76,7 @@ export default function Home() {
         {activeSidebarTab === 'status' && <ContactList />}
         {activeSidebarTab === 'calls' && <CallsTab />}
         {activeSidebarTab === 'groups' && (
-          <div className="flex-1 bg-white border-r min-w-[320px] p-6">
-             <h2 className="text-2xl font-bold mb-4">Groups</h2>
-             <button 
-                onClick={() => setIsCreateGroupOpen(true)}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition"
-             >
-                Create New Group
-             </button>
-          </div>
+          <GroupsTab onOpenCreateModal={() => setIsCreateGroupOpen(true)} />
         )}
         
         <ChatWindow 

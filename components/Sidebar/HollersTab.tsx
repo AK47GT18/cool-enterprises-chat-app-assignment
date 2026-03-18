@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserCheck, UserX, UserPlus } from 'lucide-react';
-import clsx from 'clsx';
+import styles from './SidebarTab.module.css';
 
 interface Holler {
   id: string;
@@ -20,6 +20,7 @@ export default function HollersTab() {
   const fetchHollers = async () => {
     try {
       const res = await fetch('/api/contact-requests');
+      if (!res.ok) return;
       const data = await res.json();
       setHollers(data);
     } catch (err) {
@@ -35,55 +36,64 @@ export default function HollersTab() {
 
   const handleAction = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
     try {
-      await fetch('/api/contact-requests', {
+      const res = await fetch('/api/contact-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, status })
       });
-      fetchHollers();
+      if (res.ok) {
+        fetchHollers();
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white border-r min-w-[320px]">
-      <div className="p-6 border-bottom">
-        <h2 className="text-2xl font-bold text-slate-900">Hollers</h2>
-        <p className="text-sm text-slate-500">Respond to incoming connect requests.</p>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h2>Hollers</h2>
+        <p className={styles.sectionTitle} style={{ margin: 0, textTransform: 'none' }}>
+          Respond to incoming connect requests.
+        </p>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={styles.list}>
         {loading ? (
-          <p className="text-center py-10 text-slate-400">Loading...</p>
+          <p className={styles.statusMsg}>Fetching your hollers...</p>
         ) : hollers.length === 0 ? (
-          <div className="text-center py-10">
-            <UserPlus size={48} className="mx-auto text-slate-200 mb-4" />
-            <p className="text-slate-400">No pending requests.</p>
+          <div className={styles.emptyState}>
+            <UserPlus size={64} className={styles.emptyIcon} />
+            <p>No pending requests at the moment.</p>
           </div>
         ) : (
-          hollers.map((holler) => (
-            <div key={holler.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <img src={holler.sender.image || '/default-avatar.png'} alt="" className="w-10 h-10 rounded-full" />
-                <span className="font-semibold text-slate-700">@{holler.sender.username}</span>
+          <>
+            <p className={styles.sectionTitle}>Pending Requests</p>
+            {hollers.map((holler) => (
+              <div key={holler.id} className={styles.contactItem}>
+                <div className={styles.contactInfo}>
+                  <img src={holler.sender.image || '/default-avatar.png'} alt="" className={styles.avatar} />
+                  <div className={styles.username}>@{holler.sender.username}</div>
+                </div>
+                <div className={styles.itemActions}>
+                  <button 
+                    onClick={() => handleAction(holler.id, 'ACCEPTED')}
+                    className={`${styles.iconActionBtn} ${styles.acceptBtn}`}
+                    title="Accept"
+                  >
+                    <UserCheck size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleAction(holler.id, 'REJECTED')}
+                    className={`${styles.iconActionBtn} ${styles.rejectBtn}`}
+                    title="Decline"
+                  >
+                    <UserX size={18} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => handleAction(holler.id, 'ACCEPTED')}
-                  className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors"
-                >
-                  <UserCheck size={18} />
-                </button>
-                <button 
-                  onClick={() => handleAction(holler.id, 'REJECTED')}
-                  className="p-2 bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition-colors"
-                >
-                  <UserX size={18} />
-                </button>
-              </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>
     </div>

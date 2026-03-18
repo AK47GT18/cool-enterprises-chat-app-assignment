@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const users = await prisma.user.findMany({
@@ -44,6 +44,6 @@ export async function GET(req: Request) {
     return NextResponse.json(users);
   } catch (error) {
     console.error("[USERS_SEARCH_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

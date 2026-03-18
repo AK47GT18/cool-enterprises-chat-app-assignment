@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { name, isGroup, isPublicGroup, memberIds } = await req.json();
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json(conversation);
   } catch (error) {
     console.error("[CONVERSATIONS_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
 
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (id) {
@@ -103,6 +103,6 @@ export async function GET(req: Request) {
     return NextResponse.json(conversations);
   } catch (error) {
     console.error("[CONVERSATIONS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
