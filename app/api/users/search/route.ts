@@ -1,0 +1,49 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get('q');
+
+    if (!query) {
+      return NextResponse.json([]);
+    }
+
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { username: { contains: query, mode: 'insensitive' } },
+              { email: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+          { isPrivate: false },
+          { id: { not: user.id } },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        image: true,
+      },
+      take: 10,
+    });
+
+    return NextResponse.json(users);
+  } catch (error) {
+    console.error("[USERS_SEARCH_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

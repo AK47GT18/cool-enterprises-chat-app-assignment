@@ -1,0 +1,76 @@
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100%;
+  /* changed from 100vh since we are floating */
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  z-index: 10;
+  transition: background-color var(--transition-smooth);
+}
+
+.logo {
+  margin-bottom: 30px;
+  color: var(--accent-primary);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.navItem {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.navItem:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--text-inverse);
+  transform: scale(1.05);
+}
+
+.navItem.active {
+  background-color: var(--accent-primary);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.bottomNav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.profilePic {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid transparent;
+  transition: border-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.profilePic:hover {
+  border-color: var(--accent-secondary);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+    /* Mobile typically uses bottom nav or hamburger menu */
+  }
+}

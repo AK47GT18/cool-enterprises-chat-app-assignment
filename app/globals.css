@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Unique Modern Palette - Light Theme (Blue & White Crisp) */
+  --bg-app: #f1f5f9;
+  /* Very soft slate/blue background */
+  --bg-panel: #ffffff;
+  /* Pure white panels */
+  --bg-sidebar: #0f172a;
+  /* Dark sleek sidebar */
+  --bg-chat: #f8fafc;
+  /* Ultra light chat background */
+  --bg-chat-bubble-in: #F0F4F8;
+  --bg-chat-bubble-out: #2C6BED;
+  /* Signal Blue */
+
+  --text-primary: #0f172a;
+  /* Slate 900 */
+  --text-secondary: #2C6BED;
+  /* Match primary blue */
+  --text-muted: #64748b;
+  /* Slate 500 */
+  --text-inverse: #ffffff;
+  /* Text on dark backgrounds (sidebar, sent bubbles) */
+
+  --accent-primary: #2C6BED;
+  /* Signal Blue */
+  --accent-secondary: #2C6BED;
+  /* Unified blue */
+  --accent-hover: #E8F0FD;
+  /* Soft blue tint */
+  --accent-light: #E8F0FD;
+  /* Very light blue active state */
+  --status-online: #34D399;
+  /* Online Green */
+  --sidebar-hover: #1e293b;
+  /* Hover for dark sidebar */
+
+  --border-color: #e2e8f0;
+  /* Soft border */
+  --border-radius-lg: 24px;
+  --border-radius-md: 16px;
+  --border-radius-sm: 12px;
+
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+
+  --transition-fast: 0.15s ease-in-out;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layout constraints */
+  --sidebar-w: 80px;
+  --chatlist-w: 380px;
+  --rightpanel-w: 340px;
+  --app-padding: 16px;
+  /* Padding around the floating app */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  /* Unique Modern Palette - Dark Theme (Deep Blue/Slate) */
+  --bg-app: #020617;
+  /* Slate 950 */
+  --bg-panel: #0f172a;
+  /* Slate 900 */
+  --bg-sidebar: #020617;
+  /* Slate 950 matches background */
+  --bg-chat: #090e1a;
+  /* Very dark blue/slate */
+  --bg-chat-bubble-in: #1C2128;
+  --bg-chat-bubble-out: #3B82F6;
+  /* Bright Blue for dark mode */
+
+  --text-primary: #f8fafc;
+  /* Slate 50 */
+  --text-secondary: #3B82F6;
+  /* Blue 400 */
+  --text-muted: #94a3b8;
+  /* Slate 400 */
+  --text-inverse: #ffffff;
+
+  --accent-primary: #3B82F6;
+  /* Blue 400 */
+  --accent-secondary: #3B82F6;
+  /* Unified blue */
+  --accent-hover: #1E3A5F;
+  /* Dark blue tint */
+  --accent-light: #1E3A5F;
+  /* Darker blue active state */
+  --status-online: #34D399;
+  /* Online Green */
+  --sidebar-hover: #1e293b;
+
+  --border-color: #1e293b;
+  /* Slate 800 */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg-app: #020617;
+    --bg-panel: #0f172a;
+    --bg-sidebar: #020617;
+    --bg-chat: #090e1a;
+    --bg-chat-bubble-in: #1e293b;
+    --bg-chat-bubble-out: #3b82f6;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #60a5fa;
+    --text-muted: #94a3b8;
+    --text-inverse: #ffffff;
+
+    --accent-primary: #60a5fa;
+    --accent-secondary: #38bdf8;
+    --accent-hover: #1e293b;
+    --accent-light: #0f172a;
+    --sidebar-hover: #1e293b;
+
+    --border-color: #1e293b;
   }
 }
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-smooth), color var(--transition-smooth);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(134, 150, 160, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(134, 150, 160, 0.4);
+}
+
+/* Base utility for icons */
+.lucide {
+  stroke-width: 1.5;
 }
