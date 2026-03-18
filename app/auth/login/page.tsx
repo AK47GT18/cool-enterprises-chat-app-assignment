@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Loader2, CircleDashed } from "lucide-react";
-import { signInWithPassword } from "../../../utils/supabase/actions";
+import { signInWithPassword } from "@/utils/supabase/actions";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);

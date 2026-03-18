@@ -25,6 +25,8 @@ model User {
 model Conversation {
   id            String    @id @default(cuid())
   name          String?
+  description   String?
+  imageUrl      String?
   isGroup       Boolean   @default(false)
   isPublicGroup Boolean   @default(false)
   createdAt     DateTime  @default(now())
@@ -75,6 +77,7 @@ model ContactRequest {
 enum Role {
   MEMBER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum RequestStatus {

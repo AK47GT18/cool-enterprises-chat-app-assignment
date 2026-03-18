@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Loader2, Globe, ShieldCheck, Eye, EyeOff, ArrowRight, CircleDashed } from "lucide-react";
-import { signUp } from "../../../utils/supabase/actions";
+import { signUp } from "@/utils/supabase/actions";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function RegisterPage() {
       isPublic
     );
     if (authError) { setError(authError.message); setLoading(false); }
-    else window.location.href = "/auth/login?message=Check your email to confirm your account";
+    else window.location.href = "/";
   };
 
   return (

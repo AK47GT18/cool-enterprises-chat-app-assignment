@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './ChatList.module.css';
 import { Search, Plus, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
@@ -30,6 +30,12 @@ interface ChatListProps {
 }
 
 export default function ChatList({ activeChatId, onSelectChat, isMobileListVisible }: ChatListProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className={clsx(styles.container, !isMobileListVisible && styles.hiddenOnMobile)}>
       <div className={styles.header}>
@@ -63,7 +69,7 @@ export default function ChatList({ activeChatId, onSelectChat, isMobileListVisib
               <div className={styles.chatTopLine}>
                 <span className={styles.name}>{chat.name}</span>
                 <span className={styles.time}>
-                  {format(chat.time, 'HH:mm')}
+                  {mounted ? format(chat.time, 'HH:mm') : '--:--'}
                 </span>
               </div>
               <div className={styles.chatBottomLine}>
