@@ -59,7 +59,6 @@ export async function GET(req: Request) {
         id: true,
         username: true,
         image: true,
-        email: true, // Included for the UI to show found email
       },
       take: 20,
     });

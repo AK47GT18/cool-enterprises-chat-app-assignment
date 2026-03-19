@@ -23,7 +23,10 @@ export async function POST(
       return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
-    const isAdmin = group.members.find(m => m.userId === user.id && m.role === 'ADMIN');
+    const isAdmin = group.members.find(m => 
+      m.userId === user.id && 
+      (m.role === 'ADMIN' || m.role === 'SUPER_ADMIN')
+    );
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
@@ -31,6 +34,11 @@ export async function POST(
     const userToInvite = await prisma.user.findUnique({ where: { email } });
     if (!userToInvite) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const isAlreadyMember = group.members.some(m => m.userId === userToInvite.id);
+    if (isAlreadyMember) {
+      return NextResponse.json({ error: 'User is already in the group' }, { status: 400 });
     }
 
     await prisma.userConversation.create({

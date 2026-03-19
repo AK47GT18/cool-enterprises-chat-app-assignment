@@ -29,6 +29,20 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const cursorRef = useRef<string | null>(null);
   const loadingRef = useRef(false);
   const setupChatIdRef = useRef<string | null>(null);
+  const [activeMessageMenu, setActiveMessageMenu] = React.useState<string | null>(null);
+  
+  // Ref to handle clicking outside the menu
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setActiveMessageMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
   const [isUploading, setIsUploading] = React.useState(false);
@@ -37,6 +51,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [typingUsers, setTypingUsers] = React.useState<string[]>([]);
+  const [recordingUsers, setRecordingUsers] = React.useState<string[]>([]);
   const websocketRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +228,17 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         case 'typing:stop':
           setTypingUsers(prev => prev.filter(id => id !== data.userId));
           break;
+
+        case 'recording:start':
+          if (data.userId !== currentUser.id) {
+            setRecordingUsers(prev => Array.from(new Set([...prev, data.userId])));
+            setTimeout(scrollToBottom, 50);
+          }
+          break;
+
+        case 'recording:stop':
+          setRecordingUsers(prev => prev.filter(id => id !== data.userId));
+          break;
       }
     });
 
@@ -253,6 +279,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setRecordingTime(0);
+      if (chat?.id) LocalRealtimeService.setRecording(chat.id, true);
     } catch (err) {
       console.error("Failed to start voice recording:", err);
     }
@@ -266,6 +293,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     setIsRecording(false);
     setRecordingTime(0);
     audioChunksRef.current = [];
+    if (chat?.id) LocalRealtimeService.setRecording(chat.id, false);
   };
 
   const stopRecording = () => {
@@ -279,6 +307,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       audioChunksRef.current = [];
       setIsUploading(true);
       setIsRecording(false);
+      if (chat?.id) LocalRealtimeService.setRecording(chat.id, false);
       
       const fileName = `${Date.now()}_voice.webm`;
       const formData = new FormData();
@@ -369,6 +398,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       const attachments: any = {};
       if (file.type.startsWith('image/')) attachments.imageUrl = data.url;
       else if (file.type.startsWith('video/')) attachments.videoUrl = data.url;
+      else if (file.type.startsWith('audio/')) attachments.voiceNoteUrl = data.url;
       else attachments.documentUrl = data.url;
 
       await handleSendMessage(attachments);
@@ -417,16 +447,32 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             alt={chat.name} 
             className={styles.avatar} 
           />
-          <div className={styles.userInfo}>
-            <h2>{chat.name}</h2>
-            <span className={styles.status}>
-              {chat.isGroup ? 'Group Chat' : (
-                (() => {
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
+              {chat?.isGroup ? fullChat?.name : (chat?.name || 'Chat')}
+            </h2>
+            {recordingUsers.length > 0 ? (
+              <span className="text-xs text-green-500 animate-pulse font-medium">
+                recording audio...
+              </span>
+            ) : typingUsers.length > 0 ? (
+              <span className="text-xs text-blue-500 animate-pulse font-medium">
+                typing...
+              </span>
+            ) : chat?.isGroup ? (
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {fullChat?.members?.length || 0} members
+              </span>
+            ) : (
+              <span className="text-xs text-green-500 font-medium tracking-wide">
+                {(() => {
                   const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
-                  return (otherMember && presence[otherMember.userId]) ? 'Online' : 'Offline';
-                })()
-              )}
-            </span>
+                  return (otherMember && presence[otherMember.userId]) 
+                    ? ((Date.now() - presence[otherMember.userId] < 5 * 60 * 1000) ? 'Online' : 'Offline') 
+                    : 'Offline';
+                })()}
+              </span>
+            )}
           </div>
         </div>
         <div className={styles.headerRight}>
@@ -494,16 +540,60 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             <div className={clsx(
               (msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl) 
                 ? [styles.vnContainer, msg.senderId === currentUser?.id ? styles.vnSent : styles.vnReceived]
-                : [styles.messageBubble, msg.senderId === currentUser?.id ? styles.sent : styles.received]
-            )}>
-              {/* Reply Reference */}
+                : [styles.messageBubble, msg.senderId === currentUser?.id ? styles.sent : styles.received],
+              "cursor-pointer group relative"
+            )}
+            onClick={(e) => {
+              if (activeMessageMenu === msg.id) setActiveMessageMenu(null);
+              else setActiveMessageMenu(msg.id);
+            }}
+          >
+            {/* Click-to-reply Menu Toast */}
+            {activeMessageMenu === msg.id && (
+              <div 
+                ref={menuRef}
+                className={clsx(
+                  "absolute flex items-center gap-2 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl p-2 z-[100] transition-all",
+                  msg.senderId === currentUser?.id ? "right-1/2 xs:right-0 top-[-50px]" : "left-0 top-[-50px]"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Emoji Reactions */}
+                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-full px-2 py-1 gap-1 border border-slate-200 dark:border-slate-600">
+                  {['❤️', '👍', '🔥', '😂', '😮'].map(emoji => (
+                    <button 
+                      key={emoji} 
+                      onClick={() => { handleReaction(msg.id, emoji); setActiveMessageMenu(null); }}
+                      className="hover:scale-125 transition-transform p-1 text-sm leading-none"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                {/* Reply Button */}
+                <button 
+                  onClick={() => { setReplyingTo(msg); setActiveMessageMenu(null); }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-bold text-xs"
+                >
+                  <Reply size={14} /> Reply
+                </button>
+              </div>
+            )}
+
+            {/* Reply Reference */}
               {msg.replyTo && (
-                <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-blue-500 text-[11px] opacity-80 italic">
-                  <p className="font-bold">@{msg.replyTo.sender.username}</p>
-                  <p className="truncate">{msg.replyTo.body}</p>
+                <div 
+                  className="relative p-2 mb-2 bg-black/5 dark:bg-white/10 rounded-lg border-l-4 overflow-hidden"
+                  style={{ borderLeftColor: msg.senderId === currentUser?.id ? '#1e40af' : '#2563eb' }}
+                >
+                  <span className="font-bold text-xs block mb-0.5" style={{ color: msg.senderId === currentUser?.id ? '#1e40af' : '#2563eb' }}>
+                    {msg.replyTo.sender?.username || 'User'}
+                  </span>
+                  <span className="text-xs text-slate-600 dark:text-slate-300 truncate block">
+                     {msg.replyTo.body || (msg.replyTo.imageUrl ? '📷 Photo' : msg.replyTo.videoUrl ? '🎥 Video' : msg.replyTo.voiceNoteUrl ? '🎤 Voice message' : msg.replyTo.documentUrl ? '📄 Document' : 'Message')}
+                  </span>
                 </div>
               )}
-
               {chat.isGroup && msg.senderId !== currentUser?.id && (
                 <span className="text-[10px] font-bold text-blue-400 block mb-1">
                    @{msg.sender?.username || 'user'}
@@ -552,28 +642,6 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <div className="relative group/emoji">
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white">
-                        <Smile size={14} />
-                      </button>
-                      <div className="absolute bottom-full right-0 mb-2 p-1 bg-white rounded-full shadow-xl border border-slate-200 hidden group-hover/emoji:flex items-center gap-1 z-50">
-                        {['❤️', '👍', '🔥', '😂', '😮'].map(emoji => (
-                          <button 
-                            key={emoji} 
-                            onClick={() => handleReaction(msg.id, emoji)}
-                            className="hover:scale-125 transition-transform p-1 text-sm"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setReplyingTo(msg)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white"
-                    >
-                      <Reply size={14} />
-                    </button>
                     <span className={styles.timestamp}>
                       {format(new Date(msg.createdAt), 'h:mm a')}
                     </span>

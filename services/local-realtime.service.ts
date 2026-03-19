@@ -10,7 +10,7 @@ export const LocalRealtimeService = {
       // Handle generic message if needed
     };
 
-    const listeners = ['message:new', 'message:seen', 'typing:start', 'typing:stop'];
+    const listeners = ['message:new', 'message:seen', 'typing:start', 'typing:stop', 'recording:start', 'recording:stop', 'presence:update'];
     
     listeners.forEach(eventName => {
       eventSource.addEventListener(eventName, (e: any) => {
@@ -44,6 +44,30 @@ export const LocalRealtimeService = {
       });
     } catch (err) {
       console.error("Error setting typing status:", err);
+    }
+  },
+
+  async setRecording(conversationId: string, isRecording: boolean) {
+    try {
+      await fetch('/api/realtime/recording', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, isRecording })
+      });
+    } catch (err) {
+      console.error("Error setting recording status:", err);
+    }
+  },
+
+  async setPresence(status: string) {
+    try {
+      await fetch('/api/realtime/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch (err) {
+      console.error("Error setting presence status:", err);
     }
   }
 };

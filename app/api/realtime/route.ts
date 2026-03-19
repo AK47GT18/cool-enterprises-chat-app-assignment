@@ -18,11 +18,17 @@ export async function GET(req: NextRequest) {
       const onSeen = (data: any) => sendEvent(REALTIME_EVENTS.MESSAGE_SEEN, data);
       const onTypingStart = (data: any) => sendEvent(REALTIME_EVENTS.TYPING_START, data);
       const onTypingStop = (data: any) => sendEvent(REALTIME_EVENTS.TYPING_STOP, data);
+      const onRecordingStart = (data: any) => sendEvent(REALTIME_EVENTS.RECORDING_START, data);
+      const onRecordingStop = (data: any) => sendEvent(REALTIME_EVENTS.RECORDING_STOP, data);
+      const onPresenceUpdate = (data: any) => sendEvent(REALTIME_EVENTS.PRESENCE_UPDATE, data);
 
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_NEW, onNewMessage);
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
       realtimeBus.on(REALTIME_EVENTS.TYPING_START, onTypingStart);
       realtimeBus.on(REALTIME_EVENTS.TYPING_STOP, onTypingStop);
+      realtimeBus.on(REALTIME_EVENTS.RECORDING_START, onRecordingStart);
+      realtimeBus.on(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
+      realtimeBus.on(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
 
       // Keep-alive heartbeat
       const heartbeat = setInterval(() => {
@@ -36,6 +42,9 @@ export async function GET(req: NextRequest) {
         realtimeBus.off(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
         realtimeBus.off(REALTIME_EVENTS.TYPING_START, onTypingStart);
         realtimeBus.off(REALTIME_EVENTS.TYPING_STOP, onTypingStop);
+        realtimeBus.off(REALTIME_EVENTS.RECORDING_START, onRecordingStart);
+        realtimeBus.off(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
+        realtimeBus.off(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
       };
     }
   });

@@ -32,7 +32,7 @@ export async function login(formData: FormData) {
   cookieStore.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
@@ -60,6 +60,10 @@ export async function signup(formData: FormData) {
     return { error: 'User with this email or username already exists' };
   }
 
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' };
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
@@ -77,7 +81,7 @@ export async function signup(formData: FormData) {
   cookieStore.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
@@ -100,6 +104,10 @@ export async function resetPassword(formData: FormData) {
 
   if (!token || !password) {
     return { error: 'Invalid request' };
+  }
+
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' };
   }
 
   const resetToken = await (prisma as any).passwordResetToken.findUnique({

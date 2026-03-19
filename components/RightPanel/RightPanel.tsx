@@ -340,7 +340,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <div>
                   <span className={styles.statLabel}>Media</span>
                   <span className={styles.statValue}>
-                    {fullChat?.messages?.filter((m: any) => m.imageUrl || m.videoUrl).length || 0}
+                    {fullChat?.messages?.filter((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl).length || 0}
                   </span>
                 </div>
               </div>
@@ -360,12 +360,22 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <h3>Shared Media</h3>
               </div>
               <div className={styles.mediaGrid}>
-                {fullChat?.messages?.filter((m: any) => m.imageUrl).slice(0, 9).map((msg: any) => (
-                  <div key={msg.id} className={styles.mediaItem} onClick={() => window.open(msg.imageUrl, '_blank')}>
-                    <img src={msg.imageUrl} alt="Shared" />
+                {fullChat?.messages?.filter((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl).slice(0, 9).map((msg: any) => (
+                  <div key={msg.id} className={styles.mediaItem} onClick={() => window.open(msg.imageUrl || msg.videoUrl || msg.voiceNoteUrl, '_blank')}>
+                    {msg.imageUrl ? (
+                      <img src={msg.imageUrl} alt="Shared" />
+                    ) : msg.videoUrl ? (
+                      <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold font-mono">VID</span>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-500 text-xs font-bold font-mono">AUD</span>
+                      </div>
+                    )}
                   </div>
                 ))}
-                {(!fullChat?.messages?.some((m: any) => m.imageUrl)) && (
+                {(!fullChat?.messages?.some((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl)) && (
                   <p className="text-xs text-slate-400 text-center col-span-3 py-4 italic">No media shared yet.</p>
                 )}
               </div>

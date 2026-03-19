@@ -1,6 +1,10 @@
 import CryptoJS from 'crypto-js';
 
-const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_MESSAGE_ENCRYPTION_KEY || 'default-chat-key-321-secure';
+const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_MESSAGE_ENCRYPTION_KEY!;
+
+if (!ENCRYPTION_KEY) {
+  throw new Error('NEXT_PUBLIC_MESSAGE_ENCRYPTION_KEY environment variable is required for secure encryption');
+}
 
 /**
  * Encrypts a message body using AES.

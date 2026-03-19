@@ -20,8 +20,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Recovery email dispatched' });
     }
 
-    // Generate local token
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    // Generate cryptographically secure local token
+    const { randomBytes } = await import('crypto');
+    const token = randomBytes(32).toString('hex');
     const expiresAt = Date.now() + (1000 * 60 * 60); // 1 hour from now
     
     await (prisma as any).passwordResetToken.create({

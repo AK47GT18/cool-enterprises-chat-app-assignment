@@ -80,6 +80,16 @@ export async function GET(req: Request) {
           }
         }
       });
+
+      if (!conversation) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      const isMember = conversation.members.some((m: any) => m.user.id === user.id);
+      if (!isMember) {
+        return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+      }
+
       return NextResponse.json(conversation);
     }
 
