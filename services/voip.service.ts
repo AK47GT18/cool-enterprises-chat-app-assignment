@@ -1,50 +1,75 @@
-import { createClient } from '@/utils/supabase/client';
+import { LocalRealtimeService } from './local-realtime.service';
+import { REALTIME_EVENTS } from '@/lib/realtime-constants';
 
 /**
- * WebRTC VoIP Signaling Service backed by WebSockets (Supabase Realtime).
+ * WebRTC VoIP Signaling Service using Local SSE.
  */
 export const VoIPService = {
   createSignalingChannel(chatId: string, currentUserId: string, callbacks: {
-    onIncomingCall?: (callerId: string, offer: RTCSessionDescriptionInit) => void;
-    onCallAnswered?: (answer: RTCSessionDescriptionInit) => void;
-    onIceCandidate?: (candidate: RTCIceCandidateInit) => void;
-    onHangup?: () => void;
+    onIncomingCall?: (data: { callerId: string; callerName: string; callerAvatar: string; offer: RTCSessionDescriptionInit; conversationId: string; callType: 'audio' | 'video' }) => void;
+    onCallOffer?: (data: { offer: RTCSessionDescriptionInit; conversationId: string }) => void;
+    onCallAnswered?: (data: { answer: RTCSessionDescriptionInit; conversationId: string }) => void;
+    onIceCandidate?: (data: { candidate: RTCIceCandidateInit; conversationId: string }) => void;
+    onHangup?: (data: { conversationId: string }) => void;
+    onReject?: (data: { conversationId: string }) => void;
+    onBusy?: (data: { recipientId: string }) => void;
   }) {
-    const supabase = createClient();
-    const channel = supabase.channel(`voip:${chatId}`);
+    const subscription = LocalRealtimeService.subscribe((eventName, data) => {
+      // Ignore events not meant for this user/conversation
+      if (data.targetUserId && data.targetUserId !== currentUserId) return;
+      if (data.senderId === currentUserId) return;
 
-    channel.on('broadcast', { event: 'webrtc_signal' }, (payload) => {
-      const { type, candidate, offer, answer, senderId } = payload.payload;
-      if (senderId === currentUserId) return; // ignore self
-
-      if (type === 'offer' && offer) {
-        callbacks.onIncomingCall?.(senderId, offer);
-      } else if (type === 'answer' && answer) {
-        callbacks.onCallAnswered?.(answer);
-      } else if (type === 'ice-candidate' && candidate) {
-        callbacks.onIceCandidate?.(candidate);
-      } else if (type === 'hangup') {
-        callbacks.onHangup?.();
+      switch (eventName) {
+        case REALTIME_EVENTS.CALL_INITIATE:
+          if (data.recipientId === currentUserId) {
+            callbacks.onIncomingCall?.(data);
+          }
+          break;
+        case REALTIME_EVENTS.CALL_OFFER:
+          callbacks.onCallOffer?.(data);
+          break;
+        case REALTIME_EVENTS.CALL_ANSWER:
+          callbacks.onCallAnswered?.(data);
+          break;
+        case REALTIME_EVENTS.CALL_ICE_CANDIDATE:
+          callbacks.onIceCandidate?.(data);
+          break;
+        case REALTIME_EVENTS.CALL_REJECT:
+          callbacks.onReject?.(data);
+          break;
+        case REALTIME_EVENTS.CALL_END:
+          callbacks.onHangup?.(data);
+          break;
+        case REALTIME_EVENTS.CALL_BUSY:
+          callbacks.onBusy?.(data);
+          break;
       }
     });
 
-    channel.subscribe();
+    const sendSignal = async (event: string, data: any) => {
+      try {
+        await fetch('/api/calls/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            event, 
+            data: { ...data, senderId: currentUserId } 
+          })
+        });
+      } catch (err) {
+        console.error(`Error sending signal ${event}:`, err);
+      }
+    };
 
     return {
-      channel,
-      sendOffer: async (offer: RTCSessionDescriptionInit) => {
-        await channel.send({ type: 'broadcast', event: 'webrtc_signal', payload: { type: 'offer', offer, senderId: currentUserId } });
-      },
-      sendAnswer: async (answer: RTCSessionDescriptionInit) => {
-        await channel.send({ type: 'broadcast', event: 'webrtc_signal', payload: { type: 'answer', answer, senderId: currentUserId } });
-      },
-      sendIceCandidate: async (candidate: RTCIceCandidateInit) => {
-        await channel.send({ type: 'broadcast', event: 'webrtc_signal', payload: { type: 'ice-candidate', candidate, senderId: currentUserId } });
-      },
-      sendHangup: async () => {
-        await channel.send({ type: 'broadcast', event: 'webrtc_signal', payload: { type: 'hangup', senderId: currentUserId } });
-      },
-      cleanup: () => supabase.removeChannel(channel)
+      sendInitiate: (data: any) => sendSignal(REALTIME_EVENTS.CALL_INITIATE, data),
+      sendOffer: (data: any) => sendSignal(REALTIME_EVENTS.CALL_OFFER, data),
+      sendAnswer: (data: any) => sendSignal(REALTIME_EVENTS.CALL_ANSWER, data),
+      sendIceCandidate: (data: any) => sendSignal(REALTIME_EVENTS.CALL_ICE_CANDIDATE, data),
+      sendReject: (data: any) => sendSignal(REALTIME_EVENTS.CALL_REJECT, data),
+      sendEnd: (data: any) => sendSignal(REALTIME_EVENTS.CALL_END, data),
+      sendBusy: (data: any) => sendSignal(REALTIME_EVENTS.CALL_BUSY, data),
+      cleanup: () => subscription.cleanup()
     };
   }
 };

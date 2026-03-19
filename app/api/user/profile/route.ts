@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
 
-import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
+import { realtimeBus } from '@/lib/realtime-bus';
+import { REALTIME_EVENTS } from '@/lib/realtime-constants';
 
 export async function GET() {
   try {

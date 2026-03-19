@@ -5,9 +5,6 @@ import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 
-import { useWebRTC } from '@/hooks/useWebRTC';
-import CallModal from '@/components/Calls/CallModal';
-import { createClient } from '@/utils/supabase/client';
 import { useChatStore } from '@/hooks/useChatStore';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 import { decryptMessage } from '@/lib/encryption';
@@ -16,10 +13,10 @@ interface ChatWindowProps {
   chat: { id: string; name: string; avatar: string; imageUrl?: string; online?: boolean; isGroup?: boolean } | null;
   onBack: () => void;
   isMobileWindowVisible: boolean;
+  onStartCall?: (callType: 'audio' | 'video') => void;
 }
 
-export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: ChatWindowProps) {
-  const { isCalling, isIncoming, startCall, acceptCall, hangup, remoteStream } = useWebRTC(chat?.id || null);
+export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStartCall }: ChatWindowProps) {
   const { currentUser, presence, markAsSeen, refreshConversations } = useChatStore();
   const [message, setMessage] = React.useState('');
   const [messages, setMessages] = React.useState<any[]>([]);
@@ -60,7 +57,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const observerTargetRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const supabaseRef = useRef(createClient());
+
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -528,8 +525,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         </div>
         <div className={styles.headerRight}>
           <button onClick={() => setIsSearching(!isSearching)} className={styles.iconBtn}><Search size={20} /></button>
-          <button onClick={startCall} className={styles.iconBtn}><Phone size={20} /></button>
-          <button className={styles.iconBtn}><Video size={20} /></button>
+          <button onClick={() => onStartCall?.('audio')} className={styles.iconBtn}><Phone size={20} /></button>
+          <button onClick={() => onStartCall?.('video')} className={styles.iconBtn}><Video size={20} /></button>
           <div className="relative group">
             <button 
               onClick={() => {
@@ -933,23 +930,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         )}
       </AnimatePresence>
 
-      {chat && (
-        <>
-          <CallModal 
-            isOpen={isCalling || isIncoming}
-            isIncoming={isIncoming}
-            onClose={hangup}
-            onAccept={acceptCall}
-            callerName={chat.name}
-            callerAvatar={chat.avatar}
-          />
-          <audio 
-            ref={(ref) => { if (ref && remoteStream) ref.srcObject = remoteStream; }} 
-            autoPlay 
-            className="hidden" 
-          />
-        </>
-      )}
+
     </div>
   );
 }

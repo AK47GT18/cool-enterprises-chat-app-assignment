@@ -10,7 +10,12 @@ export const LocalRealtimeService = {
       // Handle generic message if needed
     };
 
-    const listeners = ['message:new', 'message:seen', 'typing:start', 'typing:stop', 'recording:start', 'recording:stop', 'presence:update', 'user:update'];
+    const listeners = [
+      'message:new', 'message:seen', 'typing:start', 'typing:stop', 
+      'recording:start', 'recording:stop', 'presence:update', 'user:update',
+      'call:initiate', 'call:offer', 'call:answer', 'call:ice-candidate', 
+      'call:reject', 'call:end', 'call:busy'
+    ];
     
     listeners.forEach(eventName => {
       eventSource.addEventListener(eventName, (e: any) => {

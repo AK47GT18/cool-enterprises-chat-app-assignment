@@ -1,0 +1,181 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  backdrop-filter: blur(20px);
+}
+
+.callCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  max-width: 380px;
+  width: 100%;
+}
+
+/* ── Avatar ── */
+.avatarWrapper {
+  position: relative;
+  margin-bottom: 32px;
+}
+
+.avatarPulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid rgba(59, 130, 246, 0.3);
+  animation: pulseRing 2s ease-out infinite;
+}
+
+.avatarPulseOuter {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  border: 2px solid rgba(59, 130, 246, 0.15);
+  animation: pulseRing 2s ease-out 0.5s infinite;
+}
+
+.avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(59, 130, 246, 0.3);
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+/* ── Text ── */
+.callerName {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.callStatus {
+  font-size: 15px;
+  font-weight: 600;
+  color: #60a5fa;
+  margin: 0 0 48px 0;
+}
+
+.callStatusConnected {
+  color: #34d399;
+}
+
+.callTimer {
+  font-size: 32px;
+  font-weight: 300;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 48px 0;
+  letter-spacing: 2px;
+}
+
+.errorText {
+  font-size: 14px;
+  color: #f87171;
+  margin: 0 0 24px 0;
+  font-weight: 600;
+}
+
+/* ── Action Buttons ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.actionBtn:hover {
+  transform: scale(1.1);
+}
+
+.actionBtn:active {
+  transform: scale(0.95);
+}
+
+/* Sizes */
+.btnLg {
+  width: 72px;
+  height: 72px;
+}
+
+.btnMd {
+  width: 56px;
+  height: 56px;
+}
+
+/* Colors */
+.btnAccept {
+  background: #22c55e;
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.4);
+  animation: glow-green 2s ease-in-out infinite;
+}
+
+@keyframes glow-green {
+  0%, 100% { box-shadow: 0 0 24px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 36px rgba(34, 197, 94, 0.6); }
+}
+
+.btnReject {
+  background: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+}
+
+.btnEnd {
+  background: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.btnMute {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.btnMuted {
+  background: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
+.btnSpeaker {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* ── Connected Layout ── */
+.connectedActions {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.connectedInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}

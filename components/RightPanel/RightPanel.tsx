@@ -10,12 +10,13 @@ interface RightPanelProps {
   chat: { id: string; name: string; avatar: string; description?: string; isGroup?: boolean } | null;
   onClose: () => void;
   isVisible: boolean;
+  onStartCall?: (callType: 'audio' | 'video') => void;
 }
 
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 import { decryptMessage } from '@/lib/encryption';
 
-export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps) {
+export default function RightPanel({ chat, onClose, isVisible, onStartCall }: RightPanelProps) {
   const { currentUser } = useChatStore();
   const [activeView, setActiveView] = React.useState<'files' | 'profile' | 'members'>('profile');
   const [fullChat, setFullChat] = React.useState<any>(null);
@@ -334,7 +335,10 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 </div>
                 {!chat.isGroup && (
                   <div className={styles.actionItem}>
-                    <button className={styles.actionCircleBtn}>
+                    <button 
+                      onClick={() => onStartCall?.('audio')}
+                      className={styles.actionCircleBtn}
+                    >
                       <Phone size={20} />
                     </button>
                     <span className={styles.actionLabel}>Call</span>

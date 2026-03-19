@@ -1,79 +1,122 @@
 "use client";
 
-import React from 'react';
-import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Phone, PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import styles from './CallUI.module.css';
+import clsx from 'clsx';
+import type { IncomingCallData } from '@/hooks/useWebRTC';
 
-interface CallModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  isIncoming: boolean;
+interface IncomingCallModalProps {
+  incomingCall: IncomingCallData | null;
   onAccept: () => void;
-  callerName: string;
-  callerAvatar: string;
+  onReject: () => void;
 }
 
-export default function CallModal({ isOpen, onClose, isIncoming, onAccept, callerName, callerAvatar }: CallModalProps) {
-  const [isMuted, setIsMuted] = React.useState(false);
+// Web Audio API ringtone — generates a simple phone ring pattern
+function useRingtone(isRinging: boolean) {
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isRinging) return;
+
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtxRef.current = ctx;
+
+    const playRingTone = () => {
+      if (ctx.state === 'closed') return;
+      
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.frequency.value = 440;
+      osc2.frequency.value = 480;
+      gain.gain.value = 0.15;
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.8);
+      osc2.stop(now + 0.8);
+    };
+
+    playRingTone();
+    intervalRef.current = setInterval(playRingTone, 2000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (ctx.state !== 'closed') {
+        ctx.close().catch(err => console.error('[Audio] Error closing context:', err));
+      }
+      audioCtxRef.current = null;
+    };
+  }, [isRinging]);
+}
+
+export default function IncomingCallModal({ incomingCall, onAccept, onReject }: IncomingCallModalProps) {
+  useRingtone(!!incomingCall);
+
+  const avatarUrl = incomingCall?.callerAvatar
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(incomingCall?.callerName || 'U')}&background=random&size=256`;
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-md">
+      {incomingCall && (
+        <motion.div
+          className={styles.overlay}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="flex flex-col items-center text-center p-12 max-w-sm w-full"
+            className={styles.callCard}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            <div className="relative mb-8">
-               <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" />
-               <img src={callerAvatar || '/default-avatar.png'} alt="" className="w-32 h-32 rounded-full relative z-10 border-4 border-blue-500/30" />
+            <div className={styles.avatarWrapper}>
+              <div className={styles.avatarPulse} />
+              <div className={styles.avatarPulseOuter} />
+              <img
+                src={avatarUrl}
+                alt={incomingCall.callerName}
+                className={styles.avatar}
+              />
             </div>
 
-            <h2 className="text-3xl font-bold text-white mb-2">{callerName}</h2>
-            <p className="text-blue-400 font-medium mb-12">
-               {isIncoming ? 'Incoming Signal Call...' : 'Calling via Signal...'}
+            <h2 className={styles.callerName}>{incomingCall.callerName}</h2>
+            <p className={styles.callStatus}>
+              Incoming {incomingCall.callType === 'video' ? 'Video' : 'Voice'} Call...
             </p>
 
-            <div className="flex items-center gap-6">
-              {isIncoming ? (
-                <>
-                  <button 
-                    onClick={onClose}
-                    className="w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20"
-                  >
-                    <PhoneOff size={28} />
-                  </button>
-                  <button 
-                    onClick={onAccept}
-                    className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 animate-bounce"
-                  >
-                    <Phone size={32} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => setIsMuted(!isMuted)}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isMuted ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                  >
-                    {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
-                  </button>
-                  <button 
-                    onClick={onClose}
-                    className="w-20 h-20 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/40"
-                  >
-                    <PhoneOff size={32} />
-                  </button>
-                  <button className="w-14 h-14 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700">
-                    <Volume2 size={22} />
-                  </button>
-                </>
-              )}
+            <div className={styles.actions}>
+              <button
+                onClick={onReject}
+                className={clsx(styles.actionBtn, styles.btnLg, styles.btnReject)}
+                aria-label="Decline call"
+              >
+                <PhoneOff size={28} />
+              </button>
+              <button
+                onClick={onAccept}
+                className={clsx(styles.actionBtn, styles.btnLg, styles.btnAccept)}
+                aria-label="Accept call"
+              >
+                <Phone size={28} />
+              </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

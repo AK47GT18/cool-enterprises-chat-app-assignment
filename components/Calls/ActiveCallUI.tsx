@@ -1,0 +1,123 @@
+"use client";
+
+import React from 'react';
+import { PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import styles from './CallUI.module.css';
+import clsx from 'clsx';
+import type { CallState } from '@/hooks/useWebRTC';
+
+interface ActiveCallUIProps {
+  callState: CallState;
+  callerName: string;
+  callerAvatar: string;
+  callDuration: number;
+  isMuted: boolean;
+  error: string | null;
+  onEndCall: () => void;
+  onToggleMute: () => void;
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+export default function ActiveCallUI({
+  callState,
+  callerName,
+  callerAvatar,
+  callDuration,
+  isMuted,
+  error,
+  onEndCall,
+  onToggleMute,
+}: ActiveCallUIProps) {
+  const isVisible = callState === 'calling' || callState === 'connected' || callState === 'ended';
+
+  const avatarUrl = callerAvatar
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerName || 'U')}&background=random&size=256`;
+
+  const statusText = callState === 'calling'
+    ? 'Calling...'
+    : callState === 'connected'
+      ? 'Connected'
+      : 'Call Ended';
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          className={styles.overlay}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className={styles.callCard}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          >
+            <div className={styles.avatarWrapper}>
+              {callState === 'calling' && (
+                <>
+                  <div className={styles.avatarPulse} />
+                  <div className={styles.avatarPulseOuter} />
+                </>
+              )}
+              <img
+                src={avatarUrl}
+                alt={callerName}
+                className={styles.avatar}
+              />
+            </div>
+
+            <h2 className={styles.callerName}>{callerName}</h2>
+
+            {error && <p className={styles.errorText}>{error}</p>}
+
+            <p className={clsx(styles.callStatus, callState === 'connected' && styles.callStatusConnected)}>
+              {statusText}
+            </p>
+
+            {callState === 'connected' && (
+              <p className={styles.callTimer}>{formatDuration(callDuration)}</p>
+            )}
+
+            <div className={styles.connectedActions}>
+              <button
+                onClick={onToggleMute}
+                className={clsx(
+                  styles.actionBtn,
+                  styles.btnMd,
+                  isMuted ? styles.btnMuted : styles.btnMute
+                )}
+                aria-label={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+
+              <button
+                onClick={onEndCall}
+                className={clsx(styles.actionBtn, styles.btnLg, styles.btnEnd)}
+                aria-label="End call"
+              >
+                <PhoneOff size={28} />
+              </button>
+
+              <button
+                className={clsx(styles.actionBtn, styles.btnMd, styles.btnSpeaker)}
+                aria-label="Speaker"
+              >
+                <Volume2 size={22} />
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

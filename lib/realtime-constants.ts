@@ -1,0 +1,18 @@
+export const REALTIME_EVENTS = {
+  MESSAGE_NEW: 'message:new',
+  MESSAGE_UPDATE: 'message:update',
+  MESSAGE_SEEN: 'message:seen',
+  TYPING_START: 'typing:start',
+  TYPING_STOP: 'typing:stop',
+  RECORDING_START: 'recording:start',
+  RECORDING_STOP: 'recording:stop',
+  PRESENCE_UPDATE: 'presence:update',
+  USER_UPDATE: 'user:update',
+  CALL_INITIATE: 'call:initiate',
+  CALL_OFFER: 'call:offer',
+  CALL_ANSWER: 'call:answer',
+  CALL_ICE_CANDIDATE: 'call:ice-candidate',
+  CALL_REJECT: 'call:reject',
+  CALL_END: 'call:end',
+  CALL_BUSY: 'call:busy'
+};

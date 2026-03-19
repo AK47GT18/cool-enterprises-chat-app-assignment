@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
+import { realtimeBus } from '@/lib/realtime-bus';
+import { REALTIME_EVENTS } from '@/lib/realtime-constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,13 @@ export async function GET(req: NextRequest) {
       const onRecordingStop = (data: any) => sendEvent(REALTIME_EVENTS.RECORDING_STOP, data);
       const onPresenceUpdate = (data: any) => sendEvent(REALTIME_EVENTS.PRESENCE_UPDATE, data);
       const onUserUpdate = (data: any) => sendEvent(REALTIME_EVENTS.USER_UPDATE, data);
+      const onCallInitiate = (data: any) => sendEvent(REALTIME_EVENTS.CALL_INITIATE, data);
+      const onCallOffer = (data: any) => sendEvent(REALTIME_EVENTS.CALL_OFFER, data);
+      const onCallAnswer = (data: any) => sendEvent(REALTIME_EVENTS.CALL_ANSWER, data);
+      const onCallIceCandidate = (data: any) => sendEvent(REALTIME_EVENTS.CALL_ICE_CANDIDATE, data);
+      const onCallReject = (data: any) => sendEvent(REALTIME_EVENTS.CALL_REJECT, data);
+      const onCallEnd = (data: any) => sendEvent(REALTIME_EVENTS.CALL_END, data);
+      const onCallBusy = (data: any) => sendEvent(REALTIME_EVENTS.CALL_BUSY, data);
 
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_NEW, onNewMessage);
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
@@ -31,6 +39,13 @@ export async function GET(req: NextRequest) {
       realtimeBus.on(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
       realtimeBus.on(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
       realtimeBus.on(REALTIME_EVENTS.USER_UPDATE, onUserUpdate);
+      realtimeBus.on(REALTIME_EVENTS.CALL_INITIATE, onCallInitiate);
+      realtimeBus.on(REALTIME_EVENTS.CALL_OFFER, onCallOffer);
+      realtimeBus.on(REALTIME_EVENTS.CALL_ANSWER, onCallAnswer);
+      realtimeBus.on(REALTIME_EVENTS.CALL_ICE_CANDIDATE, onCallIceCandidate);
+      realtimeBus.on(REALTIME_EVENTS.CALL_REJECT, onCallReject);
+      realtimeBus.on(REALTIME_EVENTS.CALL_END, onCallEnd);
+      realtimeBus.on(REALTIME_EVENTS.CALL_BUSY, onCallBusy);
 
       // Keep-alive heartbeat
       const heartbeat = setInterval(() => {
@@ -48,6 +63,13 @@ export async function GET(req: NextRequest) {
         realtimeBus.off(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
         realtimeBus.off(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
         realtimeBus.off(REALTIME_EVENTS.USER_UPDATE, onUserUpdate);
+        realtimeBus.off(REALTIME_EVENTS.CALL_INITIATE, onCallInitiate);
+        realtimeBus.off(REALTIME_EVENTS.CALL_OFFER, onCallOffer);
+        realtimeBus.off(REALTIME_EVENTS.CALL_ANSWER, onCallAnswer);
+        realtimeBus.off(REALTIME_EVENTS.CALL_ICE_CANDIDATE, onCallIceCandidate);
+        realtimeBus.off(REALTIME_EVENTS.CALL_REJECT, onCallReject);
+        realtimeBus.off(REALTIME_EVENTS.CALL_END, onCallEnd);
+        realtimeBus.off(REALTIME_EVENTS.CALL_BUSY, onCallBusy);
       };
     }
   });
