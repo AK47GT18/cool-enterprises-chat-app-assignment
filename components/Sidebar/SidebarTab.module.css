@@ -86,6 +86,18 @@
   background-color: var(--bg-app);
 }
 
+.contactItem.activeContact {
+  background-color: var(--accent-primary);
+}
+
+.contactItem.activeContact .username {
+  color: white;
+}
+
+.contactItem.activeContact .sectionTitle {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .contactInfo {
   display: flex;
   align-items: center;
@@ -134,77 +146,46 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.actionBtn {
+.profileActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
   width: 100%;
-  background-color: var(--accent-primary);
-  color: white;
+  margin-top: 24px;
+}
+
+.actionBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 16px;
+  font-size: 14px;
   font-weight: 700;
   border: none;
   cursor: pointer;
+  background-color: var(--accent-primary);
+  color: white;
   transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
+}
+
+.actionBtn.secondary {
+  background-color: var(--sidebar-hover);
+  color: var(--text-primary);
 }
 
 .actionBtn:hover {
-  background-color: var(--accent-secondary);
   transform: translateY(-1px);
+  filter: brightness(1.1);
 }
 
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
+.actionLabel {
+  font-size: 10px;
+  font-weight: 700;
   color: var(--text-muted);
-}
-
-.emptyIcon {
-  color: var(--border-color);
-  margin-bottom: 16px;
-}
-
-.itemActions {
-  display: flex;
-  gap: 8px;
-}
-
-.iconActionBtn {
-  padding: 8px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.acceptBtn {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-}
-
-.acceptBtn:hover {
-  background-color: #10b981;
-  color: white;
-}
-
-.rejectBtn {
-  background-color: rgba(244, 63, 94, 0.1);
-  color: #f43f5e;
-}
-
-.rejectBtn:hover {
-  background-color: #f43f5e;
-  color: white;
+  margin-top: 4px;
 }
 
 @keyframes pulse {

@@ -42,7 +42,11 @@ export const MessageService = {
           select: { username: true, image: true }
         },
         replyTo: {
-          select: { id: true, body: true, sender: { select: { username: true } } }
+          include: {
+            sender: {
+              select: { username: true, image: true }
+            }
+          }
         }
       }
     });

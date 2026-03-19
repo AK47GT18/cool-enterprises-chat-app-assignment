@@ -22,15 +22,24 @@ export async function GET(
                 username: true,
                 image: true,
                 email: true,
+                bio: true,
               }
             }
           }
         },
         messages: {
+          where: {
+            OR: [
+              { imageUrl: { not: null } },
+              { videoUrl: { not: null } },
+              { voiceNoteUrl: { not: null } },
+              { documentUrl: { not: null } },
+            ]
+          },
           orderBy: {
             createdAt: 'desc'
           },
-          take: 1
+          take: 100
         }
       }
     });

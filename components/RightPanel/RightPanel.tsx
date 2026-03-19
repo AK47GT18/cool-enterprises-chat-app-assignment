@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './RightPanel.module.css';
-import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key } from 'lucide-react';
+import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key, MessageSquare, Phone, Video } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
@@ -11,6 +11,9 @@ interface RightPanelProps {
   onClose: () => void;
   isVisible: boolean;
 }
+
+import { LocalRealtimeService } from '@/services/local-realtime.service';
+import { decryptMessage } from '@/lib/encryption';
 
 export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps) {
   const { currentUser } = useChatStore();
@@ -46,6 +49,57 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
       fetchFullChat();
     }
   }, [isVisible, chat?.id, fullChat, fetchFullChat]);
+
+  // Real-time listener for shared media/docs
+  React.useEffect(() => {
+    if (!chat?.id || !isVisible) return;
+
+    const subscription = LocalRealtimeService.subscribe((eventName, data) => {
+      if (data.conversationId !== chat.id) return;
+
+      if (eventName === 'message:new') {
+        // Only care if it has attachments
+        if (data.imageUrl || data.videoUrl || data.voiceNoteUrl || data.documentUrl) {
+          setFullChat((prev: any) => {
+            if (!prev) return prev;
+            // Prevent duplicates
+            if (prev.messages?.some((m: any) => m.id === data.id)) return prev;
+            return {
+              ...prev,
+              messages: [data, ...(prev.messages || [])].slice(0, 100)
+            };
+          });
+        }
+      } else if (eventName === 'message:update') {
+        setFullChat((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            messages: prev.messages?.map((m: any) => m.id === data.id ? { ...m, ...data } : m)
+          };
+        });
+      } else if (eventName === 'user:update') {
+        const updatedUser = data;
+        setFullChat((prev: any) => {
+          if (!prev) return prev;
+          // Check if any member is the updated user
+          const hasMember = prev.members?.some((m: any) => m.userId === updatedUser.id);
+          if (!hasMember) return prev;
+          
+          return {
+            ...prev,
+            members: prev.members.map((m: any) => 
+              m.userId === updatedUser.id 
+                ? { ...m, user: { ...m.user, ...updatedUser } }
+                : m
+            )
+          };
+        });
+      }
+    });
+
+    return () => subscription.cleanup();
+  }, [chat?.id, isVisible]);
 
   const handleUpdateGroup = async () => {
     try {
@@ -156,12 +210,14 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
             >
               Profile
             </button>
-            <button 
-              className={clsx(styles.tabBtn, activeView === 'members' && styles.activeTab)}
-              onClick={() => setActiveView('members')}
-            >
-              Members
-            </button>
+            {chat.isGroup && (
+              <button 
+                className={clsx(styles.tabBtn, activeView === 'members' && styles.activeTab)}
+                onClick={() => setActiveView('members')}
+              >
+                Members
+              </button>
+            )}
             <button 
               className={clsx(styles.tabBtn, activeView === 'files' && styles.activeTab)}
               onClick={() => setActiveView('files')}
@@ -183,7 +239,15 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
               className="relative group/avatar mb-4 cursor-pointer"
               onClick={() => isAdmin && setIsEditing(true)}
             >
-              <img src={chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}&background=random`} alt={chat.name} className={styles.avatarLarge} />
+              <img 
+                src={
+                  (!chat.isGroup && fullChat?.members?.find((m: any) => m.userId !== currentUser?.id)?.user?.image) || 
+                  chat.avatar || 
+                  `https://ui-avatars.com/api/?name=${chat.name}&background=random`
+                } 
+                alt={chat.name} 
+                className={styles.avatarLarge} 
+              />
               {isAdmin && !isEditing && (
                 <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                   <Edit2 size={20} className="text-white" />
@@ -218,7 +282,11 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
             ) : (
               <>
                 <h2 className={styles.profileName}>{fullChat?.name || chat.name}</h2>
-                <p className={styles.profileBio}>{fullChat?.description || 'No description provided.'}</p>
+                <p className={styles.profileBio}>
+                  {chat.isGroup 
+                    ? (fullChat?.description || 'No description provided.')
+                    : (fullChat?.members?.find((m: any) => m.userId !== currentUser?.id)?.user?.bio || 'No bio provided.')}
+                </p>
                 {chat.isGroup && (
                   <div className="flex flex-wrap gap-2 mt-2 justify-center">
                     <span className={clsx(styles.badge, styles.memberBadge)}>
@@ -257,29 +325,50 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
             )}
 
             {!isEditing && (
-              <div className="w-full mt-8 space-y-3 pt-6 border-t border-slate-100">
-                <button 
-                  onClick={handleLeaveConversation}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 text-red-600 font-bold text-sm hover:bg-red-100 transition-colors"
-                >
-                  <UserMinus size={18} /> {chat.isGroup ? 'Leave Group' : 'Delete Chat'}
-                </button>
-                {!chat.isGroup && (
-                  <button 
-                    onClick={handleBlockUser}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition-colors"
-                  >
-                    <ShieldAlert size={18} /> Block User
+              <div className={clsx(styles.actionGrid, !chat.isGroup && styles.twoCols)}>
+                <div className={styles.actionItem}>
+                  <button className={styles.actionCircleBtn}>
+                    <MessageSquare size={20} />
                   </button>
+                  <span className={styles.actionLabel}>Message</span>
+                </div>
+                {!chat.isGroup && (
+                  <div className={styles.actionItem}>
+                    <button className={styles.actionCircleBtn}>
+                      <Phone size={20} />
+                    </button>
+                    <span className={styles.actionLabel}>Call</span>
+                  </div>
+                )}
+                {chat.isGroup && isAdmin && (
+                  <div className={styles.actionItem}>
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className={clsx(styles.actionCircleBtn, styles.secondaryCircle)}
+                    >
+                      <Edit2 size={20} />
+                    </button>
+                    <span className={styles.actionLabel}>Edit</span>
+                  </div>
                 )}
               </div>
             )}
 
             {!isEditing && (
-              <div className={styles.profileActions}>
-                <button className={styles.actionBtn}>Message</button>
-                <button onClick={() => isAdmin && setIsEditing(true)} className={clsx(styles.actionBtn, styles.secondary)}>
-                  {isAdmin ? 'Edit Group' : 'More'}
+              <div className="w-full mt-4 space-y-2">
+                {!chat.isGroup && (
+                  <button 
+                    onClick={handleBlockUser}
+                    className={styles.dangerActionBtn}
+                  >
+                    <ShieldAlert size={18} /> Block User
+                  </button>
+                )}
+                <button 
+                  onClick={handleLeaveConversation}
+                  className={styles.dangerActionBtn}
+                >
+                  <UserMinus size={18} /> {chat.isGroup ? 'Leave Group' : 'Delete Chat'}
                 </button>
               </div>
             )}
@@ -340,7 +429,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <div>
                   <span className={styles.statLabel}>Media</span>
                   <span className={styles.statValue}>
-                    {fullChat?.messages?.filter((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl).length || 0}
+                    {fullChat?.messages?.filter((m: any) => !m.isDeleted && (m.imageUrl || m.videoUrl || m.voiceNoteUrl)).length || 0}
                   </span>
                 </div>
               </div>
@@ -349,7 +438,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <div>
                   <span className={styles.statLabel}>Docs</span>
                   <span className={styles.statValue}>
-                    {fullChat?.messages?.filter((m: any) => m.documentUrl).length || 0}
+                    {fullChat?.messages?.filter((m: any) => !m.isDeleted && m.documentUrl).length || 0}
                   </span>
                 </div>
               </div>
@@ -360,7 +449,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <h3>Shared Media</h3>
               </div>
               <div className={styles.mediaGrid}>
-                {fullChat?.messages?.filter((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl).slice(0, 9).map((msg: any) => (
+                {fullChat?.messages?.filter((m: any) => !m.isDeleted && (m.imageUrl || m.videoUrl || m.voiceNoteUrl)).slice(0, 9).map((msg: any) => (
                   <div key={msg.id} className={styles.mediaItem} onClick={() => window.open(msg.imageUrl || msg.videoUrl || msg.voiceNoteUrl, '_blank')}>
                     {msg.imageUrl ? (
                       <img src={msg.imageUrl} alt="Shared" />
@@ -375,7 +464,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                     )}
                   </div>
                 ))}
-                {(!fullChat?.messages?.some((m: any) => m.imageUrl || m.videoUrl || m.voiceNoteUrl)) && (
+                {(!fullChat?.messages?.some((m: any) => !m.isDeleted && (m.imageUrl || m.videoUrl || m.voiceNoteUrl))) && (
                   <p className="text-xs text-slate-400 text-center col-span-3 py-4 italic">No media shared yet.</p>
                 )}
               </div>
@@ -386,7 +475,7 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                 <h3>Documents</h3>
               </div>
               <div className="space-y-2">
-                {fullChat?.messages?.filter((m: any) => m.documentUrl).map((msg: any) => (
+                {fullChat?.messages?.filter((m: any) => !m.isDeleted && m.documentUrl).map((msg: any) => (
                   <a 
                     key={msg.id} 
                     href={msg.documentUrl} 
@@ -398,13 +487,17 @@ export default function RightPanel({ chat, onClose, isVisible }: RightPanelProps
                       <FileText size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-700 truncate">Document</p>
-                      <p className="text-[10px] text-slate-400">{format(new Date(msg.createdAt), 'MMM d, yyyy')}</p>
+                      <p className="text-sm font-bold text-slate-700 truncate">
+                        {msg.documentUrl.split('_').slice(1).join('_') || 'Document'}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {msg.documentUrl.split('.').pop()?.toUpperCase()} • {format(new Date(msg.createdAt), 'MMM d, yyyy')}
+                      </p>
                     </div>
                     <ChevronRight size={16} className="text-slate-300" />
                   </a>
                 ))}
-                {(!fullChat?.messages?.some((m: any) => m.documentUrl)) && (
+                {(!fullChat?.messages?.some((m: any) => !m.isDeleted && m.documentUrl)) && (
                   <p className="text-xs text-slate-400 italic">No documents shared.</p>
                 )}
               </div>

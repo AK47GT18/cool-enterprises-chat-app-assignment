@@ -105,7 +105,12 @@ function MainContent() {
         )}
 
         {activeSidebarTab === 'hollers' && <HollersTab />}
-        {activeSidebarTab === 'status' && <ContactList />}
+        {activeSidebarTab === 'status' && (
+          <ContactList 
+            activeChatId={selectedChat?.id}
+            onSelectChat={handleSelectChat}
+          />
+        )}
         {activeSidebarTab === 'calls' && <CallsTab />}
         {activeSidebarTab === 'groups' && (
           <GroupsTab 

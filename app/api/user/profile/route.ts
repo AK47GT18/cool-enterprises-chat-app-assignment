@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
 
+import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
+
 export async function GET() {
   try {
     const { user, error } = await SessionService.requireAuth();
@@ -43,6 +45,14 @@ export async function PATCH(req: Request) {
         ...(bio !== undefined && { bio: bio.trim() }),
         ...(typeof isPrivate === 'boolean' && { isPrivate }),
       }
+    });
+
+    // Emit real-time update
+    realtimeBus.emit(REALTIME_EVENTS.USER_UPDATE, {
+      id: updatedUser.id,
+      username: updatedUser.username,
+      image: updatedUser.image,
+      bio: updatedUser.bio
     });
 
     return NextResponse.json(updatedUser);

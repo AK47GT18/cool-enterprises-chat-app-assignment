@@ -9,6 +9,8 @@ interface ChatStore {
   currentUser: any;
   presence: Record<string, any>;
   loading: boolean;
+  totalUnreadCount: number;
+  pendingHollersCount: number;
   refreshConversations: () => Promise<void>;
   markAsSeen: (conversationId: string) => void;
 }
@@ -18,6 +20,8 @@ const ChatStoreContext = createContext<ChatStore>({
   currentUser: null,
   presence: {},
   loading: true,
+  totalUnreadCount: 0,
+  pendingHollersCount: 0,
   refreshConversations: async () => {},
   markAsSeen: () => {},
 });
@@ -26,6 +30,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingHollersCount, setPendingHollersCount] = useState(0);
   const fetchedRef = useRef(false);
 
   const markAsSeen = useCallback((conversationId: string) => {
@@ -59,6 +64,18 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchPendingHollers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/contact-requests');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingHollersCount(data.length);
+      }
+    } catch (err) {
+      console.error("Error fetching pending hollers:", err);
+    }
+  }, []);
+
   const [presence, setPresence] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -89,10 +106,17 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
+            // Decrypt replyTo if present
+            const replyTo = data.replyTo ? {
+              ...data.replyTo,
+              body: data.replyTo.body ? decryptMessage(data.replyTo.body) : data.replyTo.body
+            } : null;
+
             chat.messages = [{ 
               ...data, 
               body: decryptedBody,
-              sender
+              sender,
+              replyTo
             }];
             
             updated[index] = chat;
@@ -102,6 +126,20 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
           });
           break;
         }
+
+        case 'message:update':
+          setConversations(current => {
+            const index = current.findIndex(c => c.id === data.conversationId);
+            if (index === -1) return current;
+            const updated = [...current];
+            const chat = { ...updated[index] };
+            if (chat.messages?.[0]?.id === data.id) {
+              chat.messages = [{ ...chat.messages[0], ...data }];
+              updated[index] = chat;
+            }
+            return updated;
+          });
+          break;
 
         case 'message:seen': {
           setConversations(current => {
@@ -171,16 +209,26 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
       });
 
     fetchConversations();
-  }, [fetchConversations]);
+    fetchPendingHollers();
+  }, [fetchConversations, fetchPendingHollers]);
+
+  const totalUnreadCount = React.useMemo(() => {
+    return conversations.filter(c => {
+      const me = c.members?.find((m: any) => m.userId === currentUser?.id);
+      return me?.hasSeenLatest === false;
+    }).length;
+  }, [conversations, currentUser?.id]);
 
   const value = React.useMemo(() => ({ 
     conversations, 
     currentUser, 
     presence, 
     loading, 
+    totalUnreadCount,
+    pendingHollersCount,
     refreshConversations: fetchConversations,
     markAsSeen
-  }), [conversations, currentUser, presence, loading, fetchConversations, markAsSeen]);
+  }), [conversations, currentUser, presence, loading, totalUnreadCount, pendingHollersCount, fetchConversations, markAsSeen]);
 
   return (
     <ChatStoreContext.Provider value={value}>

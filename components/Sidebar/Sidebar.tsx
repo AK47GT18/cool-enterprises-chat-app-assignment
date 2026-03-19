@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: SidebarProps) {
-  const { currentUser } = useChatStore();
+  const { currentUser, totalUnreadCount, pendingHollersCount } = useChatStore();
 
   return (
     <aside className={styles.sidebar}>
@@ -25,12 +25,17 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
           onClick={() => setActiveTab('chats')}
           aria-label="Chats"
         >
-          <MessageSquare size={24} />
+          <div className="relative">
+            <MessageSquare size={24} />
+            {totalUnreadCount > 0 && (
+              <span className={styles.notificationBadge}>{totalUnreadCount}</span>
+            )}
+          </div>
         </button>
         <button
           className={clsx(styles.navItem, activeTab === 'status' && styles.active)}
           onClick={() => setActiveTab('status')}
-          aria-label="Status"
+          aria-label="Discover"
         >
           <CircleDashed size={24} />
         </button>
@@ -55,7 +60,9 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
         >
           <div className="relative">
              <User size={24} />
-             <span className={styles.notificationBadge}></span>
+             {pendingHollersCount > 0 && (
+               <span className={styles.notificationBadge}>{pendingHollersCount}</span>
+             )}
           </div>
         </button>
       </nav>

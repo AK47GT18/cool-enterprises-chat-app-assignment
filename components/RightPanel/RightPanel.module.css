@@ -273,6 +273,91 @@
   width: 100%;
 }
 
+.actionGrid {
+  width: 100%;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 24px;
+}
+
+.twoCols {
+  grid-template-columns: repeat(2, 1fr) !important;
+  max-width: 180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.actionItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.actionCircleBtn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.actionCircleBtn:hover {
+  background-color: var(--accent-primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.secondaryCircle {
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+}
+
+.secondaryCircle:hover {
+  background-color: var(--text-secondary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.actionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dangerActionBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: none;
+  background: none;
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dangerActionBtn:hover {
+  background-color: rgba(239, 68, 68, 0.05);
+  transform: translateX(4px);
+}
+
 .actionBtn {
   flex: 1;
   padding: 10px;

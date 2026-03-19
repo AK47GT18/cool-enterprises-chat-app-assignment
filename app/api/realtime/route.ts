@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       const onRecordingStart = (data: any) => sendEvent(REALTIME_EVENTS.RECORDING_START, data);
       const onRecordingStop = (data: any) => sendEvent(REALTIME_EVENTS.RECORDING_STOP, data);
       const onPresenceUpdate = (data: any) => sendEvent(REALTIME_EVENTS.PRESENCE_UPDATE, data);
+      const onUserUpdate = (data: any) => sendEvent(REALTIME_EVENTS.USER_UPDATE, data);
 
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_NEW, onNewMessage);
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
       realtimeBus.on(REALTIME_EVENTS.RECORDING_START, onRecordingStart);
       realtimeBus.on(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
       realtimeBus.on(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+      realtimeBus.on(REALTIME_EVENTS.USER_UPDATE, onUserUpdate);
 
       // Keep-alive heartbeat
       const heartbeat = setInterval(() => {
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest) {
         realtimeBus.off(REALTIME_EVENTS.RECORDING_START, onRecordingStart);
         realtimeBus.off(REALTIME_EVENTS.RECORDING_STOP, onRecordingStop);
         realtimeBus.off(REALTIME_EVENTS.PRESENCE_UPDATE, onPresenceUpdate);
+        realtimeBus.off(REALTIME_EVENTS.USER_UPDATE, onUserUpdate);
       };
     }
   });

@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo } from 'react';
 import styles from './ChatWindow.module.css';
-import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, Send, Mic, Reply, X, Search, Shield, Trash2 } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, Send, Mic, Reply, X, Search, Shield, Trash2, FileText, FileBadge, FileSpreadsheet, File, Download } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -52,6 +52,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const [searchQuery, setSearchQuery] = React.useState('');
   const [typingUsers, setTypingUsers] = React.useState<string[]>([]);
   const [recordingUsers, setRecordingUsers] = React.useState<string[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false);
   const websocketRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +199,12 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             // Decrypt the body
             const decryptedBody = data.body ? decryptMessage(data.body) : data.body;
             
+            // Decrypt replyTo body if it exists
+            const replyTo = data.replyTo ? {
+              ...data.replyTo,
+              body: data.replyTo.body ? decryptMessage(data.replyTo.body) : data.replyTo.body
+            } : null;
+            
             // Resolve sender info
             let sender = data.sender;
             if (!sender) {
@@ -210,8 +217,17 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
             }
 
             // When a real message arrives, remove any optimistic message with same body and sender
-            const filtered = current.filter(m => !(m._optimistic && m.body === decryptedBody && m.senderId === data.senderId));
-            return [...filtered, { ...data, body: decryptedBody, sender }];
+            const filtered = current.filter(m => {
+              if (!m._optimistic) return true;
+              // Match by body
+              if (m.body === decryptedBody && m.senderId === data.senderId) return false;
+              // Match by voiceNoteUrl (optimistic blob)
+              if (m.voiceNoteUrl && m.voiceNoteUrl.startsWith('blob:') && data.voiceNoteUrl && m.senderId === data.senderId) return false;
+              // Match by other attachments
+              if ((m.imageUrl === data.imageUrl || m.videoUrl === data.videoUrl || m.documentUrl === data.documentUrl) && m.senderId === data.senderId) return false;
+              return true;
+            });
+            return [...filtered, { ...data, body: decryptedBody, sender, replyTo }];
           });
           setTimeout(scrollToBottom, 50);
           markAsSeen(chat.id);
@@ -238,6 +254,10 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
 
         case 'recording:stop':
           setRecordingUsers(prev => prev.filter(id => id !== data.userId));
+          break;
+
+        case 'message:update':
+          setMessages((current) => current.map(m => m.id === data.id ? { ...m, ...data } : m));
           break;
       }
     });
@@ -309,6 +329,20 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       setIsRecording(false);
       if (chat?.id) LocalRealtimeService.setRecording(chat.id, false);
       
+      const localUrl = URL.createObjectURL(audioBlob);
+      const optId = `opt_${Date.now()}`;
+      setMessages((current) => [...current, {
+        id: optId,
+        _optimistic: true,
+        body: '',
+        senderId: currentUser?.id,
+        conversationId: chat?.id,
+        createdAt: new Date().toISOString(),
+        sender: { username: 'You', image: null },
+        voiceNoteUrl: localUrl
+      }]);
+      setTimeout(scrollToBottom, 50);
+      
       const fileName = `${Date.now()}_voice.webm`;
       const formData = new FormData();
       formData.append('file', audioBlob, fileName);
@@ -317,6 +351,10 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         const response = await fetch('/api/upload', { method: 'POST', body: formData });
         if (!response.ok) throw new Error('Failed to upload voice note');
         const data = await response.json();
+        
+        // Remove optimistic local preview
+        setMessages((current) => current.filter(m => m.id !== optId));
+        
         await handleSendMessage({ voiceNoteUrl: data.url });
       } catch (error) {
         console.error("Error uploading voice note:", error);
@@ -357,6 +395,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       conversationId: chat.id,
       createdAt: new Date().toISOString(),
       sender: { username: 'You', image: null },
+      replyTo: replyingTo,
       ...attachments,
     };
     setMessages((current) => [...current, optimisticMsg]);
@@ -369,7 +408,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         body: JSON.stringify({
           body,
           conversationId: chat.id,
-          replyToId: replyingTo?.id,
+          replyToId: replyingTo?.id?.startsWith('opt_') ? null : replyingTo?.id,
           ...attachments
         })
       });
@@ -420,6 +459,18 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       // Realtime will handle the update
     } catch (error) {
       console.error("Failed to toggle reaction:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await fetch(`/api/messages/${messageId}/delete`, {
+        method: 'PATCH'
+      });
+      // Realtime will handle the update
+      setActiveMessageMenu(null);
+    } catch (error) {
+      console.error("Failed to delete message:", error);
     }
   };
 
@@ -577,6 +628,15 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                 >
                   <Reply size={14} /> Reply
                 </button>
+                {/* Delete Button */}
+                {msg.senderId === currentUser?.id && !msg.isDeleted && (
+                  <button 
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-bold text-xs"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                )}
               </div>
             )}
 
@@ -599,35 +659,57 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                    @{msg.sender?.username || 'user'}
                 </span>
               )}
-              {msg.imageUrl && (
-                <img src={msg.imageUrl} alt="Attachment" className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm" onClick={() => setLightboxImage(msg.imageUrl)} />
-              )}
-              {msg.videoUrl && (
-                <video src={msg.videoUrl} controls className="max-w-full rounded-lg mb-2" />
-              )}
-              {msg.documentUrl && (
-                <a href={msg.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-white/10 rounded-lg mb-2 hover:bg-white/20 transition-all w-full text-[12px] font-medium">
-                  <Paperclip size={14} />
-                  <span className="truncate">View Document</span>
-                </a>
-              )}
-              {msg.voiceNoteUrl && (
-                <div className="flex flex-col gap-1 w-[260px] sm:w-[300px]">
-                  <audio 
-                    src={msg.voiceNoteUrl} 
-                    controls 
-                    className="w-full h-12 rounded-full outline-none shadow-sm filter drop-shadow-sm [&::-webkit-media-controls-enclosure]:bg-white [&::-webkit-media-controls-enclosure]:rounded-full dark:[&::-webkit-media-controls-enclosure]:bg-[#1e293b]" 
-                  />
-                  {msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl && (
-                    <div className="flex items-center justify-end px-2">
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        {format(new Date(msg.createdAt), 'h:mm a')}
-                      </span>
+              {msg.isDeleted ? (
+                <div className="flex items-center gap-2 text-slate-400 italic text-[13px] py-1">
+                  <Shield size={14} />
+                  <span>This message was deleted</span>
+                </div>
+              ) : (
+                <>
+                  {msg.imageUrl && (
+                    <img src={msg.imageUrl} alt="Attachment" className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm" onClick={() => setLightboxImage(msg.imageUrl)} />
+                  )}
+                  {msg.videoUrl && (
+                    <video src={msg.videoUrl} controls className="max-w-full rounded-lg mb-2" />
+                  )}
+                  {msg.documentUrl && (
+                    <a href={msg.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white/10 dark:bg-slate-800/50 rounded-xl mb-2 hover:bg-white/20 transition-all w-full border border-white/10">
+                      <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
+                        {msg.documentUrl.toLowerCase().endsWith('.pdf') ? <FileText size={24} /> : 
+                         msg.documentUrl.toLowerCase().match(/\.(doc|docx)$/) ? <FileBadge size={24} /> :
+                         msg.documentUrl.toLowerCase().match(/\.(xls|xlsx)$/) ? <FileSpreadsheet size={24} /> :
+                         <File size={24} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">
+                          {msg.documentUrl.split('_').slice(1).join('_') || 'Document'}
+                        </p>
+                        <p className="text-[10px] opacity-50 uppercase font-black tracking-tighter">
+                          {msg.documentUrl.split('.').pop()} File
+                        </p>
+                      </div>
+                      <Download size={18} className="text-slate-400" />
+                    </a>
+                  )}
+                  {msg.voiceNoteUrl && (
+                    <div className="flex flex-col gap-1 w-[260px] sm:w-[300px]">
+                      <audio 
+                        src={msg.voiceNoteUrl} 
+                        controls 
+                        className="w-full h-12 rounded-full outline-none shadow-sm filter drop-shadow-sm [&::-webkit-media-controls-enclosure]:bg-white [&::-webkit-media-controls-enclosure]:rounded-full dark:[&::-webkit-media-controls-enclosure]:bg-[#1e293b]" 
+                      />
+                      {msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl && (
+                        <div className="flex items-center justify-end px-2">
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {format(new Date(msg.createdAt), 'h:mm a')}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                  {msg.body && renderMessageBody(msg.body)}
+                </>
               )}
-              {msg.body && renderMessageBody(msg.body)}
               
               {/* Normal footer row for standard bubbles (hidden for standalone voice notes to avoid duplication) */}
               {!(msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl) && (
@@ -748,7 +830,29 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                 <Paperclip size={24} />
               </button>
               <div className={styles.inputWrapper}>
-                <button className={styles.insideIconBtn}><Smile size={24} /></button>
+                <div className="relative">
+                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={styles.insideIconBtn}><Smile size={24} /></button>
+                  <AnimatePresence>
+                    {showEmojiPicker && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-full left-0 mb-4 bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-2xl rounded-2xl p-3 w-72 max-h-64 overflow-y-auto overflow-x-hidden z-50 flex flex-wrap gap-1 items-start justify-start select-none"
+                      >
+                        {['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','☺️','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'].map(e => (
+                           <button 
+                             key={e} 
+                             onClick={() => { setMessage(prev => prev + e); textareaRef.current?.focus(); }} 
+                             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-2xl transition-transform hover:scale-110 active:scale-95"
+                           >
+                             {e}
+                           </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <textarea 
                   ref={textareaRef}
                   rows={1}

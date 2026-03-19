@@ -13,6 +13,11 @@ export async function PATCH(
     const { messageId } = await params;
 
     const deletedMessage = await MessageService.softDeleteMessage(messageId, user.id);
+
+    // Notify local realtime bus
+    const { realtimeBus, REALTIME_EVENTS } = await import('@/lib/realtime-bus');
+    realtimeBus.emit(REALTIME_EVENTS.MESSAGE_UPDATE, deletedMessage);
+
     return NextResponse.json(deletedMessage);
   } catch (error: any) {
     console.error('[MESSAGE_DELETE]', error);

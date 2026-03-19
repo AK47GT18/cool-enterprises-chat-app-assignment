@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const { user, error: authError } = await SessionService.requireAuth();
     if (authError) return authError;
 
-    const { body, conversationId, imageUrl, videoUrl, documentUrl, voiceNoteUrl } = await req.json();
+    const { body, conversationId, imageUrl, videoUrl, documentUrl, voiceNoteUrl, replyToId } = await req.json();
 
     if (!conversationId) {
       return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       voiceNoteUrl,
       conversationId,
       senderId: user.id,
+      replyToId,
     });
 
     // Notify local realtime bus

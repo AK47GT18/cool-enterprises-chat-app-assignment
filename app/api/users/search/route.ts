@@ -59,11 +59,29 @@ export async function GET(req: Request) {
         id: true,
         username: true,
         image: true,
+        sentRequests: {
+          where: { receiverId: user.id },
+          select: { status: true }
+        },
+        receivedRequests: {
+          where: { senderId: user.id },
+          select: { status: true }
+        }
       },
       take: 20,
     });
 
-    return NextResponse.json(users);
+    const formattedUsers = users.map(u => {
+      const request = u.sentRequests[0] || u.receivedRequests[0];
+      return {
+        id: u.id,
+        username: u.username,
+        image: u.image,
+        hollerStatus: request ? request.status : null
+      };
+    });
+
+    return NextResponse.json(formattedUsers);
   } catch (err) {
     console.error("[USERS_SEARCH_GET]", err);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
