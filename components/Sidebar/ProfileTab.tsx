@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from '../ChatList/ChatList.module.css';
 import { Camera, Save, X, Users, Shield, Globe, Mail, User as UserIcon, LogOut } from 'lucide-react';
 import { useChatStore } from '@/hooks/useChatStore';
+import clsx from 'clsx';
 
 export default function ProfileTab() {
   const { currentUser, conversations, refreshConversations } = useChatStore();
@@ -196,12 +197,10 @@ export default function ProfileTab() {
             </div>
           ) : (
             <div className="mt-4 text-center">
-              <h3 className="text-xl font-black text-[#111827]">{profile?.username}</h3>
-              {profile?.bio && (
-                <p className="text-sm text-slate-600 mt-2 px-6 max-w-sm line-clamp-3">
-                  {profile.bio}
-                </p>
-              )}
+              <h3 className="text-xl font-black text-[#111827]">{profile?.username || 'Username Not Set'}</h3>
+              <p className={clsx("text-sm mt-2 px-6 max-w-sm line-clamp-3", !profile?.bio ? "text-slate-400 italic" : "text-slate-600")}>
+                {profile?.bio || 'Click edit to add a bio about yourself!'}
+              </p>
               <p className="text-xs text-slate-400 mt-2">{profile?.email}</p>
               <button
                 onClick={() => setIsEditing(true)}

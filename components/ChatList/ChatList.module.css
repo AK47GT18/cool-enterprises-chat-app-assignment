@@ -194,16 +194,63 @@
   margin-left: 8px;
 }
 
+.fab {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fab {
+    display: flex;
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    color: white;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    border: none;
+    transition: transform 0.2s;
+  }
+
+  .fab:active {
+    transform: scale(0.9);
+  }
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .container {
     width: 100vw;
+    height: calc(100% - 70px); /* Account for bottom nav */
     border-right: none;
     position: absolute;
     top: 0;
     left: 0;
     z-index: 5;
     background-color: var(--bg-panel);
+    padding-bottom: 0;
+  }
+
+  .header {
+    padding: 16px 20px 12px;
+    background: var(--bg-panel-glass);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .titleRow h2 {
+    font-size: 20px;
+  }
+
+  .list {
+    padding-bottom: 20px;
   }
 
   .hiddenOnMobile {

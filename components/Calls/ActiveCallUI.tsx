@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CallUI.module.css';
@@ -34,7 +35,8 @@ export default function ActiveCallUI({
   onEndCall,
   onToggleMute,
 }: ActiveCallUIProps) {
-  const isVisible = callState === 'calling' || callState === 'connected' || callState === 'ended';
+  // 'ringing' is NOT included - the receiver should see IncomingCallModal instead
+  const isVisible = ['calling', 'connected', 'ended'].includes(callState);
 
   const avatarUrl = callerAvatar
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerName || 'U')}&background=random&size=256`;
@@ -45,7 +47,12 @@ export default function ActiveCallUI({
       ? 'Connected'
       : 'Call Ended';
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isVisible && (
         <motion.div
@@ -118,6 +125,7 @@ export default function ActiveCallUI({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

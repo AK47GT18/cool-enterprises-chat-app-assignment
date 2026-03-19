@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Phone, PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CallUI.module.css';
@@ -68,7 +69,12 @@ export default function IncomingCallModal({ incomingCall, onAccept, onReject }: 
   const avatarUrl = incomingCall?.callerAvatar
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(incomingCall?.callerName || 'U')}&background=random&size=256`;
 
-  return (
+  const [mounted, setMounted] = React.useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {incomingCall && (
         <motion.div
@@ -118,6 +124,7 @@ export default function IncomingCallModal({ incomingCall, onAccept, onReject }: 
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

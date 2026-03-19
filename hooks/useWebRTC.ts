@@ -37,7 +37,7 @@ const ICE_SERVERS: RTCConfiguration = {
 const CALL_TIMEOUT_MS = 30000;
 
 export const useWebRTC = (): UseWebRTCReturn => {
-  const { currentUser } = useChatStore();
+  const { currentUser, addCallLog } = useChatStore();
   const [callState, setCallState] = useState<CallState>('idle');
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +59,16 @@ export const useWebRTC = (): UseWebRTCReturn => {
     callType: 'audio' | 'video';
   } | null>(null);
 
+  const callStateRef = useRef<CallState>('idle');
+  const pendingAcceptRef = useRef(false);
+
+  // Wrapper for setCallState that keeps the ref in sync
+  const setCallStateWithRef = useCallback((newState: CallState) => {
+    console.log('[WebRTC] State transition:', callStateRef.current, '->', newState);
+    callStateRef.current = newState;
+    setCallState(newState);
+  }, []);
+
   const cleanup = useCallback(() => {
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
@@ -79,10 +89,12 @@ export const useWebRTC = (): UseWebRTCReturn => {
     iceCandidateQueue.current = [];
     remoteDescriptionSet.current = false;
     currentCallRef.current = null;
+    pendingAcceptRef.current = false;
 
     setIsMuted(false);
     setCallDuration(0);
     setError(null);
+    callStateRef.current = 'idle';
   }, [localStream]);
 
   const createPeerConnection = useCallback(() => {
@@ -152,25 +164,38 @@ export const useWebRTC = (): UseWebRTCReturn => {
   ) => {
     if (!currentUser?.id) return;
     setError(null);
-    setCallState('calling');
+    setCallStateWithRef('calling');
     currentCallRef.current = { recipientId, conversationId, callType };
 
-    signalingRef.current?.sendInitiate({
-      callerId: currentUser.id,
-      callerName,
-      callerAvatar,
-      recipientId,
-      conversationId,
-      callType,
-    });
-
     try {
+      // Get media and create peer connection FIRST
       const stream = await getUserMedia(callType);
       const peerConnection = createPeerConnection();
       stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
 
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
+
+      console.log('[WebRTC] Sending Offer in INITIATE to:', recipientId);
+      // Send INITIATE with the offer included so callee has everything
+      signalingRef.current?.sendInitiate({
+        callerId: currentUser.id,
+        callerName,
+        callerAvatar,
+        recipientId,
+        targetUserId: recipientId, // Add targetUserId for filtering
+        conversationId,
+        callType,
+        offer, // Include offer in initiate
+      });
+
+      // Log outgoing call immediately
+      addCallLog({
+        type: 'outgoing',
+        callType,
+        name: callerName || 'Unknown',
+        avatar: callerAvatar || '',
+      });
 
       console.log('[WebRTC] Sending Offer to:', recipientId);
       signalingRef.current?.sendOffer({
@@ -180,20 +205,33 @@ export const useWebRTC = (): UseWebRTCReturn => {
       });
 
       callTimeoutRef.current = setTimeout(() => {
-        if (callState === 'calling') {
+        if (callStateRef.current === 'calling') {
           setError('No answer.');
           endCall();
         }
       }, CALL_TIMEOUT_MS);
     } catch (err: any) {
-      setError(err.message || 'Failed to start call');
-      setCallState('idle');
+      console.error('[WebRTC] startCall failed:', err);
+      const msg = err.name === 'NotAllowedError' || err.name === 'NotFoundError'
+        ? 'Microphone access denied. On mobile, HTTPS is required.'
+        : (err.message || 'Failed to start call');
+      setError(msg);
+      setCallStateWithRef('ended');
       cleanup();
+      setTimeout(() => setCallStateWithRef('idle'), 3000);
     }
-  }, [currentUser?.id, callState, createPeerConnection, getUserMedia, cleanup]);
+  }, [currentUser?.id, createPeerConnection, getUserMedia, cleanup, setCallStateWithRef, addCallLog]);
 
   const acceptCall = useCallback(async () => {
-    if (!incomingCall || !pc.current) return;
+    if (!incomingCall) return;
+
+    if (!pc.current) {
+      console.log('[WebRTC] Accepting call before offer arrived. Flagging pending accept.');
+      pendingAcceptRef.current = true;
+      setCallStateWithRef('ringing'); // Stay in ringing, don't jump to connected
+      return;
+    }
+
     setError(null);
     try {
       const stream = await getUserMedia(incomingCall.callType);
@@ -209,17 +247,40 @@ export const useWebRTC = (): UseWebRTCReturn => {
         conversationId: incomingCall.conversationId,
       });
 
+      // Log incoming call when accepted
+      addCallLog({
+        type: 'incoming',
+        callType: incomingCall.callType,
+        name: incomingCall.callerName,
+        avatar: incomingCall.callerAvatar,
+      });
+
       setIncomingCall(null);
-      setCallState('connected');
+      // Removed: setCallState('connected'); 
+      // Let onconnectionstatechange handle the transition to 'connected'
     } catch (err: any) {
-      setError(err.message || 'Failed to accept call');
-      setCallState('idle');
+      console.error('[WebRTC] acceptCall failed:', err);
+      const msg = err.name === 'NotAllowedError' || err.name === 'NotFoundError'
+        ? 'Microphone access denied. On mobile, HTTPS is required.'
+        : (err.message || 'Failed to accept call');
+      setError(msg);
+      setCallStateWithRef('ended');
       cleanup();
+      setTimeout(() => setCallStateWithRef('idle'), 3000);
     }
   }, [incomingCall, getUserMedia, cleanup]);
 
   const rejectCall = useCallback(() => {
     if (!incomingCall) return;
+
+    // Log missed call when rejected
+    addCallLog({
+      type: 'missed',
+      callType: incomingCall.callType,
+      name: incomingCall.callerName,
+      avatar: incomingCall.callerAvatar,
+    });
+
     signalingRef.current?.sendReject({
       callerId: incomingCall.callerId,
       conversationId: incomingCall.conversationId,
@@ -227,7 +288,7 @@ export const useWebRTC = (): UseWebRTCReturn => {
     setIncomingCall(null);
     setCallState('idle');
     cleanup();
-  }, [incomingCall, cleanup]);
+  }, [incomingCall, cleanup, addCallLog]);
 
   const endCall = useCallback(() => {
     if (currentCallRef.current) {
@@ -237,9 +298,9 @@ export const useWebRTC = (): UseWebRTCReturn => {
         conversationId: currentCallRef.current.conversationId,
       });
     }
-    setCallState('ended');
+    setCallStateWithRef('ended');
     cleanup();
-    setTimeout(() => setCallState('idle'), 1500);
+    setTimeout(() => setCallStateWithRef('idle'), 1500);
   }, [cleanup]);
 
   const toggleMute = useCallback(() => {
@@ -277,22 +338,48 @@ export const useWebRTC = (): UseWebRTCReturn => {
     callbacksRef.current = {
       onIncomingCall: (data: any) => {
         console.log('[WebRTC] Incoming call signal received:', data);
-        if (callState !== 'idle') {
-          console.log('[WebRTC] Busy - already in call state:', callState);
+        // Use the ref to avoid stale closure issues
+        if (callStateRef.current !== 'idle') {
+          console.log('[WebRTC] Busy - already in call state:', callStateRef.current);
           signalingRef.current?.sendBusy({ targetUserId: data.callerId, callerId: currentUser?.id });
           return;
         }
         currentCallRef.current = { callerId: data.callerId, conversationId: data.conversationId, callType: data.callType };
+
+        // If offer is included in INITIATE, process it immediately so acceptCall works instantly
+        if (data.offer) {
+          console.log('[WebRTC] Offer received in INITIATE, creating peer connection now');
+          const peerConnection = createPeerConnection();
+          peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+            .then(() => {
+              remoteDescriptionSet.current = true;
+              return flushIceCandidates();
+            })
+            .catch((err) => {
+              console.error('[WebRTC] Error processing offer from INITIATE:', err);
+            });
+        }
+
         setIncomingCall(data);
-        setCallState('ringing');
+        setCallStateWithRef('ringing');
       },
       onCallOffer: async (data: any) => {
-        console.log('[WebRTC] Offer received:', data);
-        // Don't strictly check for 'ringing' to avoid race conditions with state updates
+        console.log('[WebRTC] Offer received via CALL_OFFER:', data);
+        // If peer connection already exists (offer was processed via INITIATE), skip
+        if (pc.current && remoteDescriptionSet.current) {
+          console.log('[WebRTC] Offer already processed via INITIATE, skipping duplicate');
+          return;
+        }
         const peerConnection = createPeerConnection();
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
         remoteDescriptionSet.current = true;
         await flushIceCandidates();
+
+        if (pendingAcceptRef.current) {
+          console.log('[WebRTC] Offer arrived after early accept. Processing accept flow now.');
+          pendingAcceptRef.current = false;
+          acceptCall();
+        }
       },
       onCallAnswered: async (data: any) => {
         console.log('[WebRTC] Answer received:', data);
@@ -316,25 +403,25 @@ export const useWebRTC = (): UseWebRTCReturn => {
       onReject: (data: any) => {
         console.log('[WebRTC] Call rejected by remote:', data);
         setError('Call declined.');
-        setCallState('ended');
+        setCallStateWithRef('ended');
         cleanup();
-        setTimeout(() => setCallState('idle'), 2000);
+        setTimeout(() => setCallStateWithRef('idle'), 2000);
       },
       onHangup: (data: any) => {
         console.log('[WebRTC] Call ended by remote:', data);
-        setCallState('ended');
+        setCallStateWithRef('ended');
         cleanup();
-        setTimeout(() => setCallState('idle'), 1500);
+        setTimeout(() => setCallStateWithRef('idle'), 1500);
       },
       onBusy: (data: any) => {
         console.log('[WebRTC] Remote user is busy:', data);
         setError('User is busy.');
-        setCallState('ended');
+        setCallStateWithRef('ended');
         cleanup();
-        setTimeout(() => setCallState('idle'), 2000);
+        setTimeout(() => setCallStateWithRef('idle'), 2000);
       }
     };
-  }, [currentUser?.id, callState, createPeerConnection, flushIceCandidates, cleanup]);
+  }, [currentUser?.id, createPeerConnection, flushIceCandidates, cleanup, acceptCall, setCallStateWithRef]);
 
   return { callState, incomingCall, error, localStream, remoteStream, isMuted, callDuration, startCall, acceptCall, rejectCall, endCall, toggleMute };
 };

@@ -490,37 +490,37 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           <button className={styles.backBtn} onClick={onBack} aria-label="Back">
             <ArrowLeft size={24} />
           </button>
-          <img 
-            src={chat.imageUrl || chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}&background=random`} 
-            alt={chat.name} 
-            className={styles.avatar} 
-          />
-          <div className="flex flex-col">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
-              {chat?.isGroup ? fullChat?.name : (chat?.name || 'Chat')}
-            </h2>
-            {recordingUsers.length > 0 ? (
-              <span className="text-xs text-green-500 animate-pulse font-medium">
-                recording audio...
-              </span>
-            ) : typingUsers.length > 0 ? (
-              <span className="text-xs text-blue-500 animate-pulse font-medium">
-                typing...
-              </span>
-            ) : chat?.isGroup ? (
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {fullChat?.members?.length || 0} members
-              </span>
-            ) : (
-              <span className="text-xs text-green-500 font-medium tracking-wide">
-                {(() => {
-                  const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
-                  return (otherMember && presence[otherMember.userId]) 
-                    ? ((Date.now() - presence[otherMember.userId] < 5 * 60 * 1000) ? 'Online' : 'Offline') 
-                    : 'Offline';
-                })()}
-              </span>
-            )}
+          <div className="flex items-center gap-3 cursor-pointer">
+            <img 
+              src={chat.imageUrl || chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}&background=random`} 
+              alt={chat.name} 
+              className={styles.avatar} 
+            />
+            <div className="flex flex-col min-w-0">
+              <h2 className="text-[16px] font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[120px] xs:max-w-none">
+                {chat?.isGroup ? fullChat?.name : (chat?.name || 'Chat')}
+              </h2>
+              {recordingUsers.length > 0 ? (
+                <span className="text-[11px] text-green-500 animate-pulse font-medium">
+                  recording audio...
+                </span>
+              ) : typingUsers.length > 0 ? (
+                <span className="text-[11px] text-blue-500 animate-pulse font-medium">
+                  typing...
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {chat?.isGroup ? `${fullChat?.members?.length || 0} members` : (
+                    (() => {
+                      const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
+                      return (otherMember && presence[otherMember.userId]) 
+                        ? ((Date.now() - presence[otherMember.userId] < 5 * 60 * 1000) ? 'Online' : 'Offline') 
+                        : 'Offline';
+                    })()
+                  )}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className={styles.headerRight}>

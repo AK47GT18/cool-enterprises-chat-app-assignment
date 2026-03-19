@@ -1,5 +1,6 @@
 "use client";
 
+import clsx from 'clsx';
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Sidebar from "@/components/Sidebar/Sidebar";
@@ -57,8 +58,25 @@ function MainContent() {
     toggleMute,
   } = useWebRTC();
 
-  // Track who we're calling for the active call UI
+  // Track who we're calling or being called by for the active call UI
   const [activeCallInfo, setActiveCallInfo] = useState<{ name: string; avatar: string } | null>(null);
+  
+  // Debug log for call state
+  useEffect(() => {
+    if (callState !== 'idle') {
+      console.log('[Page] Current Call State:', callState);
+    }
+  }, [callState]);
+
+  // Sync activeCallInfo with incomingCall when a call arrives
+  useEffect(() => {
+    if (incomingCall) {
+      setActiveCallInfo({
+        name: incomingCall.callerName,
+        avatar: incomingCall.callerAvatar,
+      });
+    }
+  }, [incomingCall]);
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
@@ -146,8 +164,9 @@ function MainContent() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
-    <div className={styles.appContainer}>
-      <div className={styles.floatingWrapper}>
+    <>
+      <div className={clsx(styles.appContainer, mobileView === 'chat' && styles.isChatOpen)}>
+        <div className={styles.floatingWrapper}>
         <Sidebar 
           activeTab={activeSidebarTab} 
           setActiveTab={setActiveSidebarTab} 
@@ -207,8 +226,9 @@ function MainContent() {
           />
         </div>
       </div>
+    </div>
 
-      {/* ── Global Call UI ── */}
+    {/* ── Global Call UI (Outside App Container for z-index) ── */}
       <IncomingCallModal
         incomingCall={incomingCall}
         onAccept={acceptCall}
@@ -228,6 +248,6 @@ function MainContent() {
 
       {/* Hidden audio element for remote stream */}
       <audio ref={remoteAudioRef} autoPlay className="hidden" />
-    </div>
+    </>
   );
 }

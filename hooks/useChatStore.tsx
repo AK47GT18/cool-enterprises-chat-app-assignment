@@ -4,6 +4,15 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { decryptMessage } from '@/lib/encryption';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 
+export interface CallLog {
+  id: string;
+  type: 'incoming' | 'outgoing' | 'missed';
+  callType: 'audio' | 'video';
+  name: string;
+  avatar: string;
+  timestamp: number;
+}
+
 interface ChatStore {
   conversations: any[];
   currentUser: any;
@@ -11,8 +20,13 @@ interface ChatStore {
   loading: boolean;
   totalUnreadCount: number;
   pendingHollersCount: number;
+  pendingHollers: any[];
+  callsCount: number;
+  callLogs: CallLog[];
   refreshConversations: () => Promise<void>;
+  refreshPendingHollers: () => Promise<void>;
   markAsSeen: (conversationId: string) => void;
+  addCallLog: (log: Omit<CallLog, 'id' | 'timestamp'>) => void;
 }
 
 const ChatStoreContext = createContext<ChatStore>({
@@ -22,8 +36,13 @@ const ChatStoreContext = createContext<ChatStore>({
   loading: true,
   totalUnreadCount: 0,
   pendingHollersCount: 0,
+  pendingHollers: [],
+  callsCount: 0,
+  callLogs: [],
   refreshConversations: async () => {},
+  refreshPendingHollers: async () => {},
   markAsSeen: () => {},
+  addCallLog: () => {},
 });
 
 export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
@@ -31,7 +50,35 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pendingHollersCount, setPendingHollersCount] = useState(0);
+  const [pendingHollers, setPendingHollers] = useState<any[]>([]);
+  const [callsCount, setCallsCount] = useState(0);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const fetchedRef = useRef(false);
+
+  // Initialize call logs from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('call_logs');
+    if (saved) {
+      try {
+        setCallLogs(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse call logs", e);
+      }
+    }
+  }, []);
+
+  const addCallLog = useCallback((log: Omit<CallLog, 'id' | 'timestamp'>) => {
+    const newLog: CallLog = {
+      ...log,
+      id: Math.random().toString(36).substring(7),
+      timestamp: Date.now(),
+    };
+    setCallLogs(prev => {
+      const updated = [newLog, ...prev].slice(0, 50); // Keep last 50
+      localStorage.setItem('call_logs', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const markAsSeen = useCallback((conversationId: string) => {
     setConversations(current => {
@@ -69,6 +116,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/contact-requests');
       if (response.ok) {
         const data = await response.json();
+        setPendingHollers(data);
         setPendingHollersCount(data.length);
       }
     } catch (err) {
@@ -77,6 +125,9 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const [presence, setPresence] = useState<Record<string, any>>({});
+  
+  // Example: Listen for missed calls or incoming signals to increment callsCount
+  // For now, we'll keep it as a placeholder that can be updated by services
 
   useEffect(() => {
     if (!currentUser) return;
@@ -165,6 +216,10 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
           }));
           break;
         }
+        case 'holler:new': {
+          fetchPendingHollers();
+          break;
+        }
       }
     });
 
@@ -195,7 +250,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
       clearInterval(pingInterval);
       clearInterval(pruneInterval);
     };
-  }, [currentUser, fetchConversations]);
+  }, [currentUser, fetchConversations, fetchPendingHollers]);
 
   // Initial fetch for user and convos
   useEffect(() => {
@@ -226,9 +281,14 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     loading, 
     totalUnreadCount,
     pendingHollersCount,
+    pendingHollers,
+    callsCount,
+    callLogs,
     refreshConversations: fetchConversations,
-    markAsSeen
-  }), [conversations, currentUser, presence, loading, totalUnreadCount, pendingHollersCount, fetchConversations, markAsSeen]);
+    refreshPendingHollers: fetchPendingHollers,
+    markAsSeen,
+    addCallLog
+  }), [conversations, currentUser, presence, loading, totalUnreadCount, pendingHollersCount, pendingHollers, callsCount, callLogs, fetchConversations, fetchPendingHollers, markAsSeen, addCallLog]);
 
   return (
     <ChatStoreContext.Provider value={value}>

@@ -6,7 +6,7 @@ import { REALTIME_EVENTS } from '@/lib/realtime-constants';
  */
 export const VoIPService = {
   createSignalingChannel(chatId: string, currentUserId: string, callbacks: {
-    onIncomingCall?: (data: { callerId: string; callerName: string; callerAvatar: string; offer: RTCSessionDescriptionInit; conversationId: string; callType: 'audio' | 'video' }) => void;
+    onIncomingCall?: (data: { callerId: string; callerName: string; callerAvatar: string; conversationId: string; callType: 'audio' | 'video'; offer?: RTCSessionDescriptionInit }) => void;
     onCallOffer?: (data: { offer: RTCSessionDescriptionInit; conversationId: string }) => void;
     onCallAnswered?: (data: { answer: RTCSessionDescriptionInit; conversationId: string }) => void;
     onIceCandidate?: (data: { candidate: RTCIceCandidateInit; conversationId: string }) => void;
@@ -26,13 +26,19 @@ export const VoIPService = {
           }
           break;
         case REALTIME_EVENTS.CALL_OFFER:
-          callbacks.onCallOffer?.(data);
+          if (data.targetUserId === currentUserId) {
+            callbacks.onCallOffer?.(data);
+          }
           break;
         case REALTIME_EVENTS.CALL_ANSWER:
-          callbacks.onCallAnswered?.(data);
+          if (data.targetUserId === currentUserId) {
+            callbacks.onCallAnswered?.(data);
+          }
           break;
         case REALTIME_EVENTS.CALL_ICE_CANDIDATE:
-          callbacks.onIceCandidate?.(data);
+          if (data.targetUserId === currentUserId) {
+            callbacks.onIceCandidate?.(data);
+          }
           break;
         case REALTIME_EVENTS.CALL_REJECT:
           callbacks.onReject?.(data);
@@ -51,9 +57,9 @@ export const VoIPService = {
         await fetch('/api/calls/signal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            event, 
-            data: { ...data, senderId: currentUserId } 
+          body: JSON.stringify({
+            event,
+            data: { ...data, senderId: currentUserId }
           })
         });
       } catch (err) {

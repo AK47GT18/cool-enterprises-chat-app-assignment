@@ -11,7 +11,23 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: SidebarProps) {
-  const { currentUser, totalUnreadCount, pendingHollersCount } = useChatStore();
+  const { currentUser, pendingHollersCount, callsCount, conversations } = useChatStore();
+
+  const chatsUnreadCount = React.useMemo(() => {
+    return conversations.filter(c => {
+      if (c.isGroup) return false;
+      const me = c.members?.find((m: any) => m.userId === currentUser?.id);
+      return me?.hasSeenLatest === false;
+    }).length;
+  }, [conversations, currentUser?.id]);
+
+  const groupsUnreadCount = React.useMemo(() => {
+    return conversations.filter(c => {
+      if (!c.isGroup) return false;
+      const me = c.members?.find((m: any) => m.userId === currentUser?.id);
+      return me?.hasSeenLatest === false;
+    }).length;
+  }, [conversations, currentUser?.id]);
 
   return (
     <aside className={styles.sidebar}>
@@ -27,8 +43,8 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
         >
           <div className="relative">
             <MessageSquare size={24} />
-            {totalUnreadCount > 0 && (
-              <span className={styles.notificationBadge}>{totalUnreadCount}</span>
+            {chatsUnreadCount > 0 && (
+              <span className={styles.notificationBadge}>{chatsUnreadCount}</span>
             )}
           </div>
         </button>
@@ -37,33 +53,49 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
           onClick={() => setActiveTab('status')}
           aria-label="Discover"
         >
-          <CircleDashed size={24} />
+          <div className="relative">
+            <CircleDashed size={24} />
+            {pendingHollersCount > 0 && (
+              <span className={styles.notificationBadge}>{pendingHollersCount}</span>
+            )}
+          </div>
         </button>
         <button
           className={clsx(styles.navItem, activeTab === 'calls' && styles.active)}
           onClick={() => setActiveTab('calls')}
           aria-label="Calls"
         >
-          <Phone size={24} />
+          <div className="relative">
+            <Phone size={24} />
+            {callsCount > 0 && (
+              <span className={styles.notificationBadge}>{callsCount}</span>
+            )}
+          </div>
         </button>
         <button
           className={clsx(styles.navItem, activeTab === 'groups' && styles.active)}
           onClick={() => setActiveTab('groups')}
           aria-label="Groups"
         >
-          <Users size={24} />
-        </button>
-        <button
-          className={clsx(styles.navItem, activeTab === 'hollers' && styles.active)}
-          onClick={() => setActiveTab('hollers')}
-          aria-label="Hollers"
-        >
           <div className="relative">
-             <User size={24} />
-             {pendingHollersCount > 0 && (
-               <span className={styles.notificationBadge}>{pendingHollersCount}</span>
-             )}
+            <Users size={24} />
+            {groupsUnreadCount > 0 && (
+              <span className={styles.notificationBadge}>{groupsUnreadCount}</span>
+            )}
           </div>
+        </button>
+        
+        {/* Mobile-only Nav Items (hidden on desktop via CSS if needed, but here we just add them) */}
+        <button
+          className={clsx(styles.navItem, styles.mobileOnly, activeTab === 'profile' && styles.active)}
+          onClick={() => setActiveTab('profile')}
+          aria-label="Profile"
+        >
+          <img
+            src={currentUser?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${currentUser?.email || 'U'}&background=random`}
+            alt="Profile"
+            className={styles.profilePicSmall}
+          />
         </button>
       </nav>
 
@@ -71,13 +103,11 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
         <button className={styles.navItem} onClick={toggleTheme} aria-label="Settings">
           <Settings size={24} />
         </button>
-        {/* Profile picture — clickable to open profile tab */}
         <img
           src={currentUser?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${currentUser?.email || 'U'}&background=random`}
           alt="Profile"
           className={styles.profilePic}
           onClick={() => setActiveTab('profile')}
-          style={{ cursor: 'pointer' }}
         />
       </div>
     </aside>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, Filter, Check, X } from 'lucide-react';
 import styles from './SidebarTab.module.css';
 import clsx from 'clsx';
 import { useChatStore } from '@/hooks/useChatStore';
@@ -15,7 +15,8 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
   const [searchQuery, setSearchQuery] = React.useState('');
   const [results, setResults] = React.useState<any[]>([]);
   const [isSearching, setIsSearching] = React.useState(false);
-  const { conversations, currentUser } = useChatStore();
+  const [filter, setFilter] = React.useState<'all' | 'friends' | 'requests' | 'discover'>('all');
+  const { conversations, currentUser, pendingHollers, refreshPendingHollers, refreshConversations } = useChatStore();
 
   React.useEffect(() => {
     const search = async () => {
@@ -51,7 +52,39 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
         console.error("Failed to send holler:", errorData.error);
         return;
       }
-      // TODO: Show success toast
+      // Success will be reflected on next search/poll
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRequestAction = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
+    try {
+      const res = await fetch('/api/contact-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, status })
+      });
+      if (res.ok) {
+        if (status === 'ACCEPTED') {
+          // Find the request in pendingHollers to get the sender's details
+          const req = pendingHollers.find(r => r.id === requestId);
+          if (req) {
+            // Add to local results if not already there, or update if it is
+            setResults(prev => {
+              const exists = prev.find(u => u.id === req.senderId);
+              if (exists) {
+                return prev.map(u => u.id === req.senderId ? { ...u, hollerStatus: 'ACCEPTED' } : u);
+              }
+              // If not in search results, we might not want to add it forcefully, 
+              // but the store refresh will handle the list view anyway.
+              return prev;
+            });
+          }
+        }
+        refreshPendingHollers();
+        refreshConversations();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -60,7 +93,12 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2>Contacts</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2>Contacts</h2>
+          <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-500">
+            <Filter size={18} />
+          </button>
+        </div>
         
         <div className={styles.searchBar}>
           <Search size={18} className={styles.searchIcon} />
@@ -72,6 +110,28 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar">
+          {['all', 'friends', 'requests', 'discover'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f as any)}
+              className={clsx(
+                "px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border",
+                filter === f 
+                  ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white" 
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+              )}
+            >
+              {f[0].toUpperCase() + f.slice(1)}
+              {f === 'requests' && pendingHollers.length > 0 && (
+                <span className="ml-1.5 bg-red-500 text-white rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]">
+                  {pendingHollers.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className={styles.list}>
@@ -81,10 +141,46 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
            <p className={styles.statusMsg}>No users found with that name.</p>
          )}
 
+         {/* Requests Section */}
+         {(filter === 'all' || filter === 'requests') && pendingHollers.length > 0 && searchQuery.length === 0 && (
+            <>
+              <p className={styles.sectionTitle}>Friend Requests</p>
+              {pendingHollers.map((req) => (
+                <div key={req.id} className={styles.contactItem}>
+                  <div className={styles.contactInfo}>
+                    <img 
+                      src={req.sender.image || `https://ui-avatars.com/api/?name=${req.sender.username}&background=random`} 
+                      alt="" 
+                      className={styles.avatar} 
+                    />
+                    <div className="flex flex-col">
+                      <div className={styles.username}>@{req.sender.username}</div>
+                      <span className="text-[10px] text-slate-500">wants to connect</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleRequestAction(req.id, 'ACCEPTED')}
+                      className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleRequestAction(req.id, 'REJECTED')}
+                      className="p-2 bg-slate-200 text-slate-600 rounded-full hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+         )}
+
          {results.length > 0 && (
            <>
              {/* Friends Section */}
-             {results.some(u => u.hollerStatus === 'ACCEPTED') && (
+             {(filter === 'all' || filter === 'friends') && results.some(u => u.hollerStatus === 'ACCEPTED') && (
                <>
                  <p className={styles.sectionTitle}>Friends</p>
                  {results.filter(u => u.hollerStatus === 'ACCEPTED').map((user) => {
@@ -109,7 +205,7 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
              )}
 
              {/* Discover Section */}
-             {results.some(u => u.hollerStatus !== 'ACCEPTED') && (
+             {(filter === 'all' || filter === 'discover') && results.some(u => u.hollerStatus !== 'ACCEPTED') && (
                <>
                  <p className={styles.sectionTitle}>
                    {searchQuery.length >= 2 ? 'Search Results' : 'Discover People'}

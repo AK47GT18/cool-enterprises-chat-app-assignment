@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styles from './ChatList.module.css';
-import { Search, Plus, MoreVertical } from 'lucide-react';
+import { Search, Plus, MoreVertical, CircleDashed, Camera, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { useChatStore } from '@/hooks/useChatStore';
@@ -24,10 +24,11 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
     <div className={clsx(styles.container, !isMobileListVisible && styles.hiddenOnMobile)}>
       <div className={styles.header}>
         <div className={styles.titleRow}>
-          <h2>Messages</h2>
+          <h2>Cool Chat</h2>
           <div className={styles.actions}>
-            <button onClick={onNewChat} className={styles.iconBtn} aria-label="New Chat"><Plus size={20} /></button>
-            <button className={styles.iconBtn} aria-label="More options"><MoreVertical size={20} /></button>
+            <button className={styles.iconBtn} aria-label="Camera"><Camera size={22} /></button>
+            <button className={styles.iconBtn} aria-label="Search"><Search size={22} /></button>
+            <button className={styles.iconBtn} aria-label="More options"><MoreVertical size={22} /></button>
           </div>
         </div>
         
@@ -53,7 +54,6 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
           const myMember = chat.members?.find((m: any) => m.userId === currentUser?.id);
           const unreadCount = myMember?.hasSeenLatest === false ? 1 : 0;
           
-          // Basic online check for 1-on-1 chats
           let isOnline = false;
           if (!chat.isGroup) {
             const otherMember = chat.members?.find((m: any) => m.userId !== currentUser?.id);
@@ -97,6 +97,14 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
           );
         })}
       </div>
+
+      <button 
+        className={styles.fab} 
+        onClick={onNewChat}
+        aria-label="New Message"
+      >
+        <MessageSquare size={24} />
+      </button>
     </div>
   );
 }
