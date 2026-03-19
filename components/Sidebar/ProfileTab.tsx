@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from '../ChatList/ChatList.module.css';
 import { Camera, Save, X, Users, Shield, Globe, Mail, User as UserIcon, LogOut } from 'lucide-react';
 import { useChatStore } from '@/hooks/useChatStore';
-import { createClient } from '@/utils/supabase/client';
 
 export default function ProfileTab() {
   const { currentUser, conversations, refreshConversations } = useChatStore();
@@ -12,9 +11,10 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
-  const [editedImage, setEditedImage] = useState('');
+  const [editedBio, setEditedBio] = useState('');
   const [editedIsPrivate, setEditedIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function ProfileTab() {
           const data = await response.json();
           setProfile(data);
           setEditedName(data.username || '');
-          setEditedImage(data.image || '');
+          setEditedBio(data.bio || '');
           setEditedIsPrivate(data.isPrivate || false);
         }
       } catch (error) {
@@ -40,12 +40,13 @@ export default function ProfileTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      console.log("Saving profile with:", { username: editedName, bio: editedBio, isPrivate: editedIsPrivate });
       const response = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           username: editedName,
-          image: editedImage,
+          bio: editedBio,
           isPrivate: editedIsPrivate
         })
       });
@@ -53,44 +54,48 @@ export default function ProfileTab() {
         const updated = await response.json();
         setProfile((prev: any) => ({ ...prev, ...updated }));
         setIsEditing(false);
+        setError(null);
         // Refresh global store to update sidebar etc.
         refreshConversations();
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to update profile");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving profile:", error);
+      setError("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const supabase = createClient();
-    const fileExt = file.name.split('.').pop();
-    const filePath = `profiles/${currentUser?.id}/${Date.now()}.${fileExt}`;
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const { error } = await supabase.storage
-        .from('chat-media')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
 
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-media')
-        .getPublicUrl(filePath);
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const { url } = await uploadRes.json();
 
       const response = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: publicUrl })
+        body: JSON.stringify({ image: url })
       });
 
       if (response.ok) {
         const updated = await response.json();
         setProfile((prev: any) => ({ ...prev, ...updated }));
+        // Refresh global store to update sidebar etc.
+        refreshConversations();
       }
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -154,12 +159,17 @@ export default function ProfileTab() {
                 className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center font-bold outline-none"
                 placeholder="Username"
               />
-              <input
-                value={editedImage}
-                onChange={(e) => setEditedImage(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center font-bold outline-none"
-                placeholder="Avatar URL"
-              />
+              <textarea
+                value={editedBio}
+                onChange={(e) => setEditedBio(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center outline-none resize-none min-h-[80px] text-sm"
+                placeholder="Brief bio..."
+               />
+              {error && (
+                <p className="text-xs text-red-500 font-bold mt-1 text-center bg-red-50 p-2 rounded-lg border border-red-100 italic">
+                   {error}
+                </p>
+              )}
               <button 
                 type="button" 
                 onClick={() => setEditedIsPrivate(!editedIsPrivate)}
@@ -187,7 +197,12 @@ export default function ProfileTab() {
           ) : (
             <div className="mt-4 text-center">
               <h3 className="text-xl font-black text-[#111827]">{profile?.username}</h3>
-              <p className="text-sm text-slate-500 mt-1">{profile?.email}</p>
+              {profile?.bio && (
+                <p className="text-sm text-slate-600 mt-2 px-6 max-w-sm line-clamp-3">
+                  {profile.bio}
+                </p>
+              )}
+              <p className="text-xs text-slate-400 mt-2">{profile?.email}</p>
               <button
                 onClick={() => setIsEditing(true)}
                 className="mt-3 px-6 py-2 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"

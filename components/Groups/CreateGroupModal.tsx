@@ -31,23 +31,18 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
     setUploadingImage(true);
     setError('');
 
+    const formData = new FormData();
+    formData.append('file', file);
+
     try {
-      const { createClient } = await import('@/utils/supabase/client');
-      const supabase = createClient();
-      const fileExt = file.name.split('.').pop();
-      const filePath = `groups/${Date.now()}_${Math.random()}.${fileExt}`;
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('chat-media')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-media')
-        .getPublicUrl(filePath);
-
-      setImageUrl(publicUrl);
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const { url } = await uploadRes.json();
+      setImageUrl(url);
     } catch (err) {
       console.error("Image upload failed:", err);
       setError('Failed to upload image. Please try again.');

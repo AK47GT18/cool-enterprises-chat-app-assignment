@@ -75,7 +75,7 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }: NewChatM
                 <input 
                   autoFocus
                   type="text"
-                  placeholder="Search by username or email..."
+                  placeholder="Search by username, email, or Privacy Code..."
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -92,7 +92,7 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }: NewChatM
               ) : users.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-center px-8">
                   <p className="text-sm font-bold text-slate-600 mb-1">No users found</p>
-                  <p className="text-xs">Try searching for public users by their name or email address.</p>
+                  <p className="text-xs">Try searching for people by name, email, or their unique Privacy Code.</p>
                 </div>
               ) : (
                 users.map(user => (
@@ -110,7 +110,7 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }: NewChatM
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-bold text-slate-900 leading-tight">@{user.username}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
+                      <p className="text-[10px] text-slate-500">{user.email}</p>
                     </div>
                     <div className="p-2 bg-blue-50 text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
                       <MessageSquare size={18} />
@@ -120,8 +120,8 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }: NewChatM
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 text-[11px] text-slate-400 text-center font-medium">
-              Only public profiles are searchable here.
+            <div className="p-4 bg-slate-50 text-[10px] text-slate-400 text-center font-bold">
+              Public profiles are always searchable. Private profiles require their direct Privacy Code.
             </div>
           </motion.div>
         </div>

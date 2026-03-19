@@ -131,30 +131,71 @@
 
 .messageBubble {
   max-width: 75%;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 12px;
   position: relative;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.4;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
   display: flex;
   flex-direction: column;
   transition: transform 0.2s ease;
+  height: fit-content;
 }
 
 .received {
   align-self: flex-start;
   background-color: #ffffff;
   color: var(--text-primary);
-  border-top-left-radius: 4px;
-  border-left: 1px solid rgba(0,0,0,0.05);
+  border-radius: 8px;
+  border-top-left-radius: 0;
+}
+
+.received::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0px solid transparent;
+  border-right: 8px solid #ffffff;
+  border-bottom: 12px solid transparent;
 }
 
 .sent {
   margin-left: auto;
-  background-color: var(--bg-chat-bubble-out);
+  background-color: var(--bg-chat-bubble-out, #3b82f6);
   color: #ffffff !important;
-  border-top-right-radius: 4px;
+  border-radius: 8px;
+  border-top-right-radius: 0;
+}
+
+.sent::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0px solid transparent;
+  border-left: 8px solid var(--bg-chat-bubble-out, #3b82f6);
+  border-bottom: 10px solid transparent;
+}
+
+.vnContainer {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  margin-bottom: 4px;
+}
+
+.vnSent {
+  margin-left: auto;
+}
+
+.vnReceived {
+  align-self: flex-start;
 }
 
 [data-theme="dark"] .received {
@@ -162,9 +203,17 @@
   color: #e9edef;
 }
 
+[data-theme="dark"] .received::before {
+  border-right-color: #202c33;
+}
+
 [data-theme="dark"] .sent {
   background-color: #005c4b;
   color: #e9edef !important;
+}
+
+[data-theme="dark"] .sent::after {
+  border-left-color: #005c4b;
 }
 
 .messageBubble p {
@@ -393,61 +442,25 @@
   }
 }
 
-.recordingOverlay {
-  position: absolute;
-  bottom: 80px;
-  left: 20px;
-  right: 20px;
-  background: white;
-  padding: 15px 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 10;
-  border: 1px solid #fee2e2;
-}
-
-[data-theme="dark"] .recordingOverlay {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-.recordingInfo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.recordingDot {
-  width: 10px;
-  height: 10px;
-  background-color: #ef4444;
-  border-radius: 50%;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-.recordingTime {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.recordingProgress {
-  height: 4px;
-  background-color: var(--accent-primary, #3b82f6);
-  border-radius: 2px;
-}
-
 .sendBtn {
   background-color: var(--accent-primary, #3b82f6) !important;
+  color: white !important;
+}
+
+.waMicBtn {
+  background-color: #00a884 !important;
+  color: white !important;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transition: transform 0.2s, background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waMicBtn:hover {
+  background-color: #008f6f !important;
   color: white !important;
 }
 

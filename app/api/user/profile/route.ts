@@ -30,20 +30,36 @@ export async function PATCH(req: Request) {
     const { user, error } = await SessionService.requireAuth();
     if (error) return error;
 
-    const { username, image, isPrivate } = await req.json();
+    const body = await req.json();
+    console.log("[USER_PROFILE_PATCH] User ID:", user.id);
+    console.log("[USER_PROFILE_PATCH] Body:", body);
+    const { username, image, bio, isPrivate } = body;
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        ...(username && { username }),
+        ...(username && { username: username.trim() }),
         ...(image && { image }),
+        ...(bio !== undefined && { bio: bio.trim() }),
         ...(typeof isPrivate === 'boolean' && { isPrivate }),
       }
     });
 
     return NextResponse.json(updatedUser);
-  } catch (err) {
-    console.error("[USER_PROFILE_PATCH]", err);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("[USER_PROFILE_PATCH] Error:", err.message || err);
+    
+    // Return more specific error for common issues
+    if (err.code === 'P2002') {
+      const target = err.meta?.target || ['field'];
+      return NextResponse.json({ 
+        error: `The ${target.join(', ')} is already in use.` 
+      }, { status: 400 });
+    }
+
+    return NextResponse.json({ 
+      error: "Internal Error",
+      details: err.message
+    }, { status: 500 });
   }
 }

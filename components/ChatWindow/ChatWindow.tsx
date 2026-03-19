@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo } from 'react';
 import styles from './ChatWindow.module.css';
-import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, Send, Mic, Reply, X, Search } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Smile, Send, Mic, Reply, X, Search, Shield, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -20,7 +20,7 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: ChatWindowProps) {
   const { isCalling, isIncoming, startCall, acceptCall, hangup, remoteStream } = useWebRTC(chat?.id || null);
-  const { currentUser, presence, markAsSeen } = useChatStore();
+  const { currentUser, presence, markAsSeen, refreshConversations } = useChatStore();
   const [message, setMessage] = React.useState('');
   const [messages, setMessages] = React.useState<any[]>([]);
   const [fullChat, setFullChat] = React.useState<any>(null);
@@ -147,6 +147,26 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
 
   }, [chat?.id, fetchMessages, fetchFullChat, markAsSeen]);
 
+  const handleBlock = async () => {
+    if (!chat?.id || !confirm("Are you sure you want to block this user? This will also delete your conversation with them.")) return;
+    
+    // Find the other user's ID from fullChat members
+    const otherUser = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id)?.user;
+    const otherUserId = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id)?.userId;
+    
+    if (!otherUserId) return;
+
+    try {
+      const response = await fetch(`/api/users/${otherUserId}/block`, { method: 'POST' });
+      if (response.ok) {
+        refreshConversations();
+        window.location.href = '/'; // Redirect to home/clear chat
+      }
+    } catch (error) {
+      console.error("Failed to block user:", error);
+    }
+  };
+
   // Realtime Setup (Local SSE)
   React.useEffect(() => {
     if (!chat?.id || !currentUser?.id) return;
@@ -223,7 +243,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 16000 });
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -238,6 +258,16 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     }
   };
 
+  const cancelRecording = () => {
+    if (!mediaRecorderRef.current || !isRecording) return;
+    mediaRecorderRef.current.onstop = null;
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    setIsRecording(false);
+    setRecordingTime(0);
+    audioChunksRef.current = [];
+  };
+
   const stopRecording = () => {
     if (!mediaRecorderRef.current || !isRecording) {
       setIsRecording(false);
@@ -250,17 +280,15 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
       setIsUploading(true);
       setIsRecording(false);
       
-      const supabase = supabaseRef.current;
-      const filePath = `messages/${chat?.id}/${Date.now()}_voice.webm`;
+      const fileName = `${Date.now()}_voice.webm`;
+      const formData = new FormData();
+      formData.append('file', audioBlob, fileName);
       
       try {
-        const { error } = await supabase.storage
-          .from('chat-media')
-          .upload(filePath, audioBlob, { contentType: 'audio/webm' });
-        if (error) throw error;
-        
-        const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(filePath);
-        await handleSendMessage({ voiceNoteUrl: publicUrl });
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!response.ok) throw new Error('Failed to upload voice note');
+        const data = await response.json();
+        await handleSendMessage({ voiceNoteUrl: data.url });
       } catch (error) {
         console.error("Error uploading voice note:", error);
       } finally {
@@ -330,25 +358,18 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
     if (!file || !chat) return;
 
     setIsUploading(true);
-    const supabase = supabaseRef.current;
-    const fileExt = file.name.split('.').pop();
-    const filePath = `messages/${chat.id}/${Date.now()}_${Math.random()}.${fileExt}`;
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const { error } = await supabase.storage
-        .from('chat-media')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-media')
-        .getPublicUrl(filePath);
-
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('File upload failed');
+      const data = await response.json();
+      
       const attachments: any = {};
-      if (file.type.startsWith('image/')) attachments.imageUrl = publicUrl;
-      else if (file.type.startsWith('video/')) attachments.videoUrl = publicUrl;
-      else attachments.documentUrl = publicUrl;
+      if (file.type.startsWith('image/')) attachments.imageUrl = data.url;
+      else if (file.type.startsWith('video/')) attachments.videoUrl = data.url;
+      else attachments.documentUrl = data.url;
 
       await handleSendMessage(attachments);
     } catch (error) {
@@ -412,7 +433,31 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           <button onClick={() => setIsSearching(!isSearching)} className={styles.iconBtn}><Search size={20} /></button>
           <button onClick={startCall} className={styles.iconBtn}><Phone size={20} /></button>
           <button className={styles.iconBtn}><Video size={20} /></button>
-          <button className={styles.iconBtn}><MoreVertical size={20} /></button>
+          <div className="relative group">
+            <button 
+              onClick={() => {
+                const dropdown = document.getElementById('chat-more-dropdown');
+                if (dropdown) dropdown.classList.toggle('hidden');
+              }}
+              className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all duration-300"
+            >
+              <MoreVertical size={20} />
+            </button>
+            <div id="chat-more-dropdown" className="hidden absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-2 overflow-hidden">
+              <button 
+                onClick={handleBlock}
+                className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+              >
+                <Shield size={16} /> Block User
+              </button>
+              <button 
+                onClick={() => {}} 
+                className="w-full px-4 py-2.5 text-left text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+              >
+                <Trash2 size={16} /> Delete Conversation
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -426,7 +471,6 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         )}
       </AnimatePresence>
 
-      {/* Messages */}
       <div className={styles.messagesArea}>
         {hasMore && (
           <div ref={observerTargetRef} className="w-full flex justify-center py-4">
@@ -448,8 +492,9 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
              className={styles.messageRow}
           >
             <div className={clsx(
-              styles.messageBubble, 
-              msg.senderId === currentUser?.id ? styles.sent : styles.received
+              (msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl) 
+                ? [styles.vnContainer, msg.senderId === currentUser?.id ? styles.vnSent : styles.vnReceived]
+                : [styles.messageBubble, msg.senderId === currentUser?.id ? styles.sent : styles.received]
             )}>
               {/* Reply Reference */}
               {msg.replyTo && (
@@ -471,54 +516,70 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
                 <video src={msg.videoUrl} controls className="max-w-full rounded-lg mb-2" />
               )}
               {msg.documentUrl && (
-                <a href={msg.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-white/10 rounded-lg mb-2 hover:bg-white/20 transition-all text-[12px] font-medium">
+                <a href={msg.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-white/10 rounded-lg mb-2 hover:bg-white/20 transition-all w-full text-[12px] font-medium">
                   <Paperclip size={14} />
                   <span className="truncate">View Document</span>
                 </a>
               )}
               {msg.voiceNoteUrl && (
-                <audio src={msg.voiceNoteUrl} controls className="max-w-full h-10 mb-2 filter drop-shadow-sm [&::-webkit-media-controls-enclosure]:bg-black/5 [&::-webkit-media-controls-enclosure]:rounded-full" />
+                <div className="flex flex-col gap-1 w-[260px] sm:w-[300px]">
+                  <audio 
+                    src={msg.voiceNoteUrl} 
+                    controls 
+                    className="w-full h-12 rounded-full outline-none shadow-sm filter drop-shadow-sm [&::-webkit-media-controls-enclosure]:bg-white [&::-webkit-media-controls-enclosure]:rounded-full dark:[&::-webkit-media-controls-enclosure]:bg-[#1e293b]" 
+                  />
+                  {msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl && (
+                    <div className="flex items-center justify-end px-2">
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {format(new Date(msg.createdAt), 'h:mm a')}
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
               {msg.body && renderMessageBody(msg.body)}
               
-              <div className="flex items-center justify-between mt-1 gap-4">
-                {/* Reactions */}
-                <div className="flex gap-1 flex-wrap">
-                  {msg.reactions?.map((r: any) => (
-                    <span key={r.id} className="text-[12px] bg-white/20 px-1.5 py-0.5 rounded-full shadow-sm">
-                      {r.emoji}
-                    </span>
-                  ))}
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <div className="relative group/emoji">
-                    <button className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white">
-                      <Smile size={14} />
-                    </button>
-                    <div className="absolute bottom-full right-0 mb-2 p-1 bg-white rounded-full shadow-xl border border-slate-200 hidden group-hover/emoji:flex items-center gap-1 z-50">
-                      {['❤️', '👍', '🔥', '😂', '😮'].map(emoji => (
-                        <button 
-                          key={emoji} 
-                          onClick={() => handleReaction(msg.id, emoji)}
-                          className="hover:scale-125 transition-transform p-1 text-sm"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
+              {/* Normal footer row for standard bubbles (hidden for standalone voice notes to avoid duplication) */}
+              {!(msg.voiceNoteUrl && !msg.body && !msg.imageUrl && !msg.videoUrl && !msg.documentUrl) && (
+                <div className="flex items-center justify-between mt-1 gap-4">
+                  {/* Reactions */}
+                  <div className="flex gap-1 flex-wrap">
+                    {msg.reactions?.map((r: any) => (
+                      <span key={r.id} className="text-[12px] bg-white/20 px-1.5 py-0.5 rounded-full shadow-sm">
+                        {r.emoji}
+                      </span>
+                    ))}
                   </div>
-                  <button 
-                    onClick={() => setReplyingTo(msg)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white"
-                  >
-                    <Reply size={14} />
-                  </button>
-                  <span className={styles.timestamp}>
-                    {format(new Date(msg.createdAt), 'h:mm a')}
-                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="relative group/emoji">
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white">
+                        <Smile size={14} />
+                      </button>
+                      <div className="absolute bottom-full right-0 mb-2 p-1 bg-white rounded-full shadow-xl border border-slate-200 hidden group-hover/emoji:flex items-center gap-1 z-50">
+                        {['❤️', '👍', '🔥', '😂', '😮'].map(emoji => (
+                          <button 
+                            key={emoji} 
+                            onClick={() => handleReaction(msg.id, emoji)}
+                            className="hover:scale-125 transition-transform p-1 text-sm"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setReplyingTo(msg)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white"
+                    >
+                      <Reply size={14} />
+                    </button>
+                    <span className={styles.timestamp}>
+                      {format(new Date(msg.createdAt), 'h:mm a')}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -541,25 +602,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
         )}
       </div>
 
-      {/* Recording UI */}
-      {isRecording && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={styles.recordingOverlay}
-        >
-          <div className={styles.recordingInfo}>
-            <div className={styles.recordingDot} />
-            <span className={styles.recordingTime}>Recording... {recordingTime}s</span>
-          </div>
-          <motion.div 
-            className={styles.recordingProgress}
-            initial={{ width: 0 }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 10, repeat: Infinity }}
-          />
-        </motion.div>
-      )}
+      {/* Recording UI overlay removed; integrated into inputArea below */}
 
       {/* Replying To Bar */}
       <AnimatePresence>
@@ -593,61 +636,97 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible }: Chat
           onChange={handleFileUpload}
           accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
         />
-        <button 
-          className={clsx(styles.iconBtn, isUploading && "animate-pulse")} 
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-        >
-          <Paperclip size={24} />
-        </button>
-        <div className={styles.inputWrapper}>
-          <button className={styles.insideIconBtn}><Smile size={24} /></button>
-          <textarea 
-            ref={textareaRef}
-            rows={1}
-            placeholder="Write a message..." 
-            className={styles.msgInput} 
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              autoResize();
-              LocalRealtimeService.setTyping(chat.id, e.target.value.length > 0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-                if (textareaRef.current) textareaRef.current.style.height = 'auto';
-              }
-            }}
-          />
-        </div>
-        <AnimatePresence mode="wait">
-          {message.trim().length > 0 ? (
-            <motion.button
-              key="send"
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className={clsx(styles.iconBtn, styles.sendBtn)}
-              onClick={() => handleSendMessage()}
+        <AnimatePresence mode="popLayout">
+          {isRecording ? (
+            <motion.div 
+              key="recording-ui"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: '100%', opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="flex items-center w-full gap-3 py-1 pr-1"
             >
-              <Send size={24} />
-            </motion.button>
+              <button 
+                onClick={cancelRecording}
+                className="text-red-500 hover:bg-red-50 p-2.5 rounded-full transition-colors flex-shrink-0"
+              >
+                <Trash2 size={22} />
+              </button>
+              <div className="flex-1 flex items-center justify-center gap-2">
+                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-red-500 font-medium tabular-nums font-mono text-base">
+                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              <button
+                onClick={stopRecording}
+                className={clsx(styles.iconBtn, styles.sendBtn)}
+              >
+                <Send size={22} />
+              </button>
+            </motion.div>
           ) : (
-            <motion.button
-              key="mic"
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className={clsx(styles.iconBtn, styles.micBtn, isRecording && "text-red-500 animate-pulse bg-red-50")}
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
+            <motion.div 
+              key="text-ui"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-end gap-2 w-full"
             >
-              <Mic size={24} />
-            </motion.button>
+              <button 
+                className={clsx(styles.iconBtn, isUploading && "animate-pulse")} 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Paperclip size={24} />
+              </button>
+              <div className={styles.inputWrapper}>
+                <button className={styles.insideIconBtn}><Smile size={24} /></button>
+                <textarea 
+                  ref={textareaRef}
+                  rows={1}
+                  placeholder="Message" 
+                  className={styles.msgInput} 
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    autoResize();
+                    LocalRealtimeService.setTyping(chat.id, e.target.value.length > 0);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+                    }
+                  }}
+                />
+              </div>
+              <AnimatePresence mode="wait">
+                {message.trim().length > 0 ? (
+                  <motion.button
+                    key="send"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    className={clsx(styles.iconBtn, styles.sendBtn)}
+                    onClick={() => handleSendMessage()}
+                  >
+                    <Send size={24} />
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    key="mic"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    className={clsx(styles.waMicBtn)}
+                    onClick={startRecording}
+                  >
+                    <Mic size={24} className="text-white" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
