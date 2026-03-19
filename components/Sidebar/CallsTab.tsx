@@ -16,8 +16,12 @@ export default function CallsTab() {
 
       <div className={styles.list}>
         <div className={styles.emptyState}>
-          <Phone size={64} className={styles.emptyIcon} />
-          <p>No recent calls found.</p>
+          <div className={styles.emptyIconWrapper}>
+            <div className={styles.emptyIconBg}></div>
+            <Phone size={64} className={styles.emptyIcon} />
+          </div>
+          <h3 className={styles.emptyTitle}>No recent calls</h3>
+          <p className={styles.emptySubtitle}>Your voice and video calls will appear here once you start reaching out.</p>
         </div>
       </div>
     </div>

@@ -63,8 +63,12 @@ export default function HollersTab() {
           <p className={styles.statusMsg}>Fetching your hollers...</p>
         ) : hollers.length === 0 ? (
           <div className={styles.emptyState}>
-            <UserPlus size={64} className={styles.emptyIcon} />
-            <p>No pending requests at the moment.</p>
+            <div className={styles.emptyIconWrapper}>
+              <div className={styles.emptyIconBg}></div>
+              <UserPlus size={64} className={styles.emptyIcon} />
+            </div>
+            <h3 className={styles.emptyTitle}>No pending hollers</h3>
+            <p className={styles.emptySubtitle}>When people request to connect with you, they'll show up here for your approval.</p>
           </div>
         ) : (
           <>
