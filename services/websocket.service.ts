@@ -1,5 +1,4 @@
 import { createClient } from '@/utils/supabase/client';
-import { decryptMessage } from '@/lib/encryption';
 
 /**
  * Client-side Realtime Service for Supabase WebSockets.
@@ -21,8 +20,7 @@ export const WebSocketService = {
         // Filter locally
         if (payload.new.conversationId !== conversationId) return;
         
-        const decryptedBody = payload.new.body ? decryptMessage(payload.new.body) : payload.new.body;
-        callbacks.onMessage?.({ ...payload, new: { ...payload.new, body: decryptedBody } });
+        callbacks.onMessage?.(payload);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Message' }, payload => {
         // Filter locally

@@ -12,9 +12,9 @@ if (typeof window === 'undefined' && !ENCRYPTION_KEY) {
 export function encryptMessage(text: string): string {
   if (!text) return text;
   if (!ENCRYPTION_KEY) {
-    // If the key is missing, we cannot encrypt. Return original text.
-    // The initial check should prevent this in server-side, but good for client-side or unexpected scenarios.
-    console.warn("Encryption key is missing. Message will not be encrypted.");
+    if (typeof window === 'undefined') {
+      console.warn("Encryption key is missing. Message will not be encrypted.");
+    }
     return text;
   }
   try {
@@ -32,8 +32,6 @@ export function decryptMessage(ciphertext: string): string {
   if (!ciphertext) return ciphertext;
   
   if (!ENCRYPTION_KEY) {
-    // If the key is missing, we cannot decrypt. Return original ciphertext.
-    console.warn("Encryption key is missing. Message will not be decrypted.");
     return ciphertext;
   }
   

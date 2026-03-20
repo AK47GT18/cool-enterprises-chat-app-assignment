@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { decryptMessage } from '@/lib/encryption';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 
 export interface CallLog {
@@ -136,8 +135,6 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     const subscription = LocalRealtimeService.subscribe((eventName, data) => {
       switch(eventName) {
         case 'message:new': {
-          const decryptedBody = data.body ? decryptMessage(data.body) : data.body;
-          
           setConversations(current => {
             const index = current.findIndex(c => c.id === data.conversationId);
             if (index === -1) {
@@ -157,17 +154,10 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            // Decrypt replyTo if present
-            const replyTo = data.replyTo ? {
-              ...data.replyTo,
-              body: data.replyTo.body ? decryptMessage(data.replyTo.body) : data.replyTo.body
-            } : null;
-
             chat.messages = [{ 
               ...data, 
-              body: decryptedBody,
               sender,
-              replyTo
+              replyTo: data.replyTo
             }];
             
             updated[index] = chat;
