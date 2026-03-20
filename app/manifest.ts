@@ -1,0 +1,21 @@
+import type { MetadataRoute } from 'next'
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: 'The Circle Chat App',
+    short_name: 'Circle Chat',
+    description: 'Connect and chat in the circle. A premium real-time communication experience.',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#ffffff',
+    theme_color: '#6366f1',
+    icons: [
+      {
+        src: '/icon.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
+  }
+}
