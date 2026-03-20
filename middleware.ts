@@ -28,9 +28,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+  const isValidationApi = request.nextUrl.pathname === '/api/auth/validate-session';
+
   // Cross-check sessionId with Database if user is authenticated
   // This is the "Single Session" enforcement
-  if (isValid && decodedPayload?.sessionId) {
+  // IMPORTANT: Do NOT run this check for the validation API itself to avoid recursion
+  if (isValid && decodedPayload?.sessionId && !isValidationApi && !isAuthRoute) {
     // In a real Next.js Edge middleware with Prisma, you'd typically hit an API route 
     // or use a specialized edge-compatible DB client.
     // For this implementation, we will perform a fetch to an internal validation endpoint
@@ -61,8 +65,6 @@ export async function middleware(request: NextRequest) {
   const isPrivateRoute = privateRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route) || request.nextUrl.pathname === '/'
   );
-
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
 
   // If trying to access a private route without a valid session
   if (isPrivateRoute && !isValid && !isAuthRoute) {
