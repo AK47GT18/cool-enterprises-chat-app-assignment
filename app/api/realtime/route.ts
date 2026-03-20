@@ -54,7 +54,6 @@ export async function GET(req: NextRequest) {
       realtimeBus.on(REALTIME_EVENTS.CALL_BUSY, onCallBusy);
       realtimeBus.on(REALTIME_EVENTS.CONVERSATION_NEW, onConversationNew);
       realtimeBus.on(REALTIME_EVENTS.CONVERSATION_UPDATE, onConversationUpdate);
-      realtimeBus.on(REALTIME_EVENTS.MESSAGE_DELETE, onMessageDelete);
 
       // Keep-alive heartbeat
       const heartbeat = setInterval(() => {

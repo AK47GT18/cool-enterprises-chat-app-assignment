@@ -28,6 +28,15 @@
   .appContainer.isChatOpen aside {
     display: none !important;
   }
+
+  /* When info panel is open on mobile */
+  .appContainer.isInfoOpen {
+    padding-bottom: 0;
+  }
+
+  .appContainer.isInfoOpen aside {
+    display: none !important;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -55,5 +64,14 @@
 @media (max-width: 1100px) {
   .rightPanelWrapper {
     display: none;
+  }
+
+  /* Show the right panel on mobile when explicitly activated */
+  .rightPanelWrapper.rightPanelMobileActive {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background-color: var(--bg-panel, #fff);
   }
 }

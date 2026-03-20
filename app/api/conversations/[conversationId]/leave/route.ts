@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
+import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
 
 export async function DELETE(
   req: Request,
@@ -21,13 +22,16 @@ export async function DELETE(
       }
     });
 
-    // If it's a 1-on-1, maybe we should delete the conversation? 
-    // Usually "leave" for 1-on-1 means "delete/hide chat". 
-    // For now, just removing the membership is enough to hide it from ChatList.
+    // Emit real-time event so clients update instantly
+    realtimeBus.emit(REALTIME_EVENTS.CONVERSATION_UPDATE, {
+      id: conversationId,
+      memberLeft: user.id
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, conversationId });
   } catch (err) {
     console.error("[CONVERSATION_LEAVE_DELETE]", err);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
+

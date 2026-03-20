@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './RightPanel.module.css';
-import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key, MessageSquare, Phone } from 'lucide-react';
+import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key, MessageSquare, Phone, ArrowLeft, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
@@ -11,11 +11,15 @@ interface RightPanelProps {
   onClose: () => void;
   isVisible: boolean;
   onStartCall?: (callType: 'audio') => void;
+  onBack?: () => void;
+  isMobile?: boolean;
+  onDeleteCommunity?: () => void;
+  onLeaveCommunity?: () => void;
 }
 
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 
-export default function RightPanel({ chat, onClose, isVisible, onStartCall }: RightPanelProps) {
+export default function RightPanel({ chat, onClose, isVisible, onStartCall, onBack, isMobile, onDeleteCommunity, onLeaveCommunity }: RightPanelProps) {
   const { currentUser } = useChatStore();
   const [activeView, setActiveView] = React.useState<'files' | 'profile' | 'members'>('profile');
   const [fullChat, setFullChat] = React.useState<any>(null);
@@ -155,7 +159,7 @@ export default function RightPanel({ chat, onClose, isVisible, onStartCall }: Ri
       });
       if (response.ok) {
         onClose();
-        window.location.reload(); // Refresh to update list
+        onLeaveCommunity?.();
       }
     } catch (error) {
       console.error("Error leaving conversation:", error);
@@ -203,6 +207,15 @@ export default function RightPanel({ chat, onClose, isVisible, onStartCall }: Ri
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerTop}>
+          {isMobile && (
+            <button 
+              className="p-2 -ml-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+              onClick={onBack}
+              aria-label="Back"
+            >
+              <ArrowLeft size={22} />
+            </button>
+          )}
           <div className={styles.headerTabs}>
             <button 
               className={clsx(styles.tabBtn, activeView === 'profile' && styles.activeTab)}
@@ -225,9 +238,11 @@ export default function RightPanel({ chat, onClose, isVisible, onStartCall }: Ri
               Shared
             </button>
           </div>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close Info">
-            <X size={20} />
-          </button>
+          {!isMobile && (
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Close Info">
+              <X size={20} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -373,6 +388,26 @@ export default function RightPanel({ chat, onClose, isVisible, onStartCall }: Ri
                 >
                   <UserMinus size={18} /> {chat.isGroup ? 'Leave Group' : 'Delete Chat'}
                 </button>
+                {chat.isGroup && isAdmin && (
+                  <button 
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to permanently delete this community? This action cannot be undone.')) return;
+                      try {
+                        const res = await fetch(`/api/conversations/${chat.id}/delete`, { method: 'DELETE' });
+                        if (res.ok) {
+                          onClose();
+                          onDeleteCommunity?.();
+                        }
+                      } catch (err) {
+                        console.error('Error deleting community:', err);
+                      }
+                    }}
+                    className={styles.dangerActionBtn}
+                    style={{ color: '#dc2626' }}
+                  >
+                    <Trash2 size={18} /> Delete Community
+                  </button>
+                )}
               </div>
             )}
           </div>

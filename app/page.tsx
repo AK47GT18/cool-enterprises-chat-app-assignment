@@ -81,7 +81,7 @@ function MainContent() {
   // Sync selectedChat with the latest data from conversations store
   useEffect(() => {
     if (selectedChat?.id) {
-      const latest = conversations.find(c => c.id === selectedChat.id);
+      const latest = conversations.find((c: any) => c.id === selectedChat.id);
       if (latest && JSON.stringify(latest) !== JSON.stringify(selectedChat)) {
         setSelectedChat(latest);
       }
@@ -152,6 +152,14 @@ function MainContent() {
     setMobileView("list");
   };
 
+  const handleShowInfo = () => {
+    setMobileView("info");
+  };
+
+  const handleBackFromInfo = () => {
+    setMobileView("chat");
+  };
+
   const handleStartChatWithUser = async (user: any) => {
     try {
       const response = await fetch('/api/conversations', {
@@ -171,11 +179,27 @@ function MainContent() {
     }
   };
 
+  const handleDeleteCommunity = () => {
+    setSelectedChat(null);
+    setMobileView("list");
+    refreshConversations();
+  };
+
+  const handleLeaveCommunity = () => {
+    setSelectedChat(null);
+    setMobileView("list");
+    refreshConversations();
+  };
+
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
     <>
-      <div className={clsx(styles.appContainer, mobileView === 'chat' && styles.isChatOpen)}>
+      <div className={clsx(
+        styles.appContainer, 
+        mobileView === 'chat' && styles.isChatOpen,
+        mobileView === 'info' && styles.isInfoOpen
+      )}>
         <div className={styles.floatingWrapper}>
         <Sidebar 
           activeTab={activeSidebarTab} 
@@ -215,6 +239,7 @@ function MainContent() {
           onBack={handleBackToList}
           isMobileWindowVisible={mobileView === "chat"}
           onStartCall={handleStartCall}
+          onShowInfo={handleShowInfo}
         />
 
         <CreateGroupModal 
@@ -228,12 +253,26 @@ function MainContent() {
           onSelectUser={handleStartChatWithUser}
         />
 
-        <div className={styles.rightPanelWrapper}>
+        {/* RightPanel: visible on desktop always, mobile only when info view active */}
+        <div className={clsx(
+          styles.rightPanelWrapper,
+          mobileView === 'info' && styles.rightPanelMobileActive
+        )}>
           <RightPanel 
             chat={selectedChat} 
-            onClose={() => setIsRightPanelOpen(false)} 
-            isVisible={!!selectedChat && isRightPanelOpen} 
+            onClose={() => {
+              setIsRightPanelOpen(false);
+              if (mobileView === 'info') setMobileView('chat');
+            }} 
+            isVisible={
+              (!!selectedChat && isRightPanelOpen) || 
+              mobileView === 'info'
+            } 
             onStartCall={handleStartCall}
+            onBack={handleBackFromInfo}
+            isMobile={mobileView === 'info'}
+            onDeleteCommunity={handleDeleteCommunity}
+            onLeaveCommunity={handleLeaveCommunity}
           />
         </div>
       </div>

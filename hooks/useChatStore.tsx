@@ -215,15 +215,19 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
           break;
         }
         case 'conversation:update': {
-          setConversations(current => {
-            return current.map(c => {
-              if (c.id === data.id) {
-                // Ensure we don't overwrite if more complete data exists
-                return { ...c, ...data };
-              }
-              return c;
+          if (data.deleted) {
+            // Community was deleted — remove it from the list
+            setConversations(current => current.filter(c => c.id !== data.id));
+          } else {
+            setConversations(current => {
+              return current.map(c => {
+                if (c.id === data.id) {
+                  return { ...c, ...data };
+                }
+                return c;
+              });
             });
-          });
+          }
           break;
         }
       }

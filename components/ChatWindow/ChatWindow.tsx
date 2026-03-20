@@ -13,9 +13,10 @@ interface ChatWindowProps {
   onBack: () => void;
   isMobileWindowVisible: boolean;
   onStartCall?: (callType: 'audio') => void;
+  onShowInfo?: () => void;
 }
 
-export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStartCall }: ChatWindowProps) {
+export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStartCall, onShowInfo }: ChatWindowProps) {
   const { currentUser, presence, markAsSeen, refreshConversations } = useChatStore();
   const [message, setMessage] = React.useState('');
   const [messages, setMessages] = React.useState<any[]>([]);
@@ -501,7 +502,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           <button className={styles.backBtn} onClick={onBack} aria-label="Back">
             <ArrowLeft size={24} />
           </button>
-          <div className="flex items-center gap-3 cursor-pointer">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onShowInfo?.()}>
             <img 
               src={chat.imageUrl || chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}&background=random`} 
               alt={chat.name} 
