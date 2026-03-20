@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
 import { decryptMessage } from '@/lib/encryption';
+import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
 
 export async function GET(
   req: Request,
@@ -103,6 +104,9 @@ export async function PATCH(
         imageUrl
       }
     });
+
+    // Notify realtime bus
+    realtimeBus.emit(REALTIME_EVENTS.CONVERSATION_UPDATE, updatedConversation);
 
     return NextResponse.json(updatedConversation);
   } catch (error) {

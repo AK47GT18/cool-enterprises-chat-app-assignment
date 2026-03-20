@@ -41,7 +41,7 @@ function MainContent() {
   // Mobile responsive view state
   const [mobileView, setMobileView] = useState<MobileView>("list");
 
-  const { refreshConversations, currentUser } = useChatStore();
+  const { refreshConversations, currentUser, conversations } = useChatStore();
 
   // ── WebRTC Call System (global) ──
   const {
@@ -77,6 +77,16 @@ function MainContent() {
       });
     }
   }, [incomingCall]);
+
+  // Sync selectedChat with the latest data from conversations store
+  useEffect(() => {
+    if (selectedChat?.id) {
+      const latest = conversations.find(c => c.id === selectedChat.id);
+      if (latest && JSON.stringify(latest) !== JSON.stringify(selectedChat)) {
+        setSelectedChat(latest);
+      }
+    }
+  }, [conversations, selectedChat?.id]);
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 

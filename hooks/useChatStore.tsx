@@ -220,6 +220,22 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
           fetchPendingHollers();
           break;
         }
+        case 'conversation:new': {
+          fetchConversations();
+          break;
+        }
+        case 'conversation:update': {
+          setConversations(current => {
+            return current.map(c => {
+              if (c.id === data.id) {
+                // Ensure we don't overwrite if more complete data exists
+                return { ...c, ...data };
+              }
+              return c;
+            });
+          });
+          break;
+        }
       }
     });
 

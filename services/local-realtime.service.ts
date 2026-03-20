@@ -13,6 +13,7 @@ export const LocalRealtimeService = {
     const listeners = [
       'message:new', 'message:seen', 'typing:start', 'typing:stop', 
       'recording:start', 'recording:stop', 'presence:update', 'user:update',
+      'conversation:new', 'conversation:update',
       'call:initiate', 'call:offer', 'call:answer', 'call:ice-candidate', 
       'call:reject', 'call:end', 'call:busy'
     ];

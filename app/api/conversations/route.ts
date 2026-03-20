@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
 import { Role } from '@prisma/client';
 import { decryptMessage } from '@/lib/encryption';
+import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
 
 export async function POST(req: Request) {
   try {
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
         }
       }
     });
+
+    // Notify realtime bus
+    realtimeBus.emit(REALTIME_EVENTS.CONVERSATION_NEW, conversation);
 
     return NextResponse.json(conversation);
   } catch (err) {

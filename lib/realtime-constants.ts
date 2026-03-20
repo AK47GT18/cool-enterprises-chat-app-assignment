@@ -14,5 +14,7 @@ export const REALTIME_EVENTS = {
   CALL_ICE_CANDIDATE: 'call:ice-candidate',
   CALL_REJECT: 'call:reject',
   CALL_END: 'call:end',
-  CALL_BUSY: 'call:busy'
+  CALL_BUSY: 'call:busy',
+  CONVERSATION_NEW: 'conversation:new',
+  CONVERSATION_UPDATE: 'conversation:update'
 };

@@ -40,8 +40,20 @@ export function decryptMessage(ciphertext: string): string {
   try {
     const bytes = CryptoJS.AES.decrypt(ciphertext, ENCRYPTION_KEY);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-    return decrypted || ciphertext;
+    if (decrypted) return decrypted;
   } catch (error) {
-    return ciphertext;
+    // Ignore first pass failure
   }
+
+  // Fallback to legacy key to support older messages
+  try {
+    const LEGACY_KEY = 'default-chat-key-321-secure';
+    const legacyBytes = CryptoJS.AES.decrypt(ciphertext, LEGACY_KEY);
+    const legacyDecrypted = legacyBytes.toString(CryptoJS.enc.Utf8);
+    if (legacyDecrypted) return legacyDecrypted;
+  } catch (fallbackError) {
+    // Ignore legacy pass failure
+  }
+
+  return ciphertext;
 }
