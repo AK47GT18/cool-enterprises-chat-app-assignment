@@ -16,6 +16,14 @@ export default function ProfileTab() {
   const [editedIsPrivate, setEditedIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const [passValidationErrors, setPassValidationErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,8 +48,9 @@ export default function ProfileTab() {
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
+    setSuccessMsg(null);
     try {
-      console.log("Saving profile with:", { username: editedName, bio: editedBio, isPrivate: editedIsPrivate });
       const response = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -55,8 +64,7 @@ export default function ProfileTab() {
         const updated = await response.json();
         setProfile((prev: any) => ({ ...prev, ...updated }));
         setIsEditing(false);
-        setError(null);
-        // Refresh global store to update sidebar etc.
+        setSuccessMsg("Profile updated successfully!");
         refreshConversations();
       } else {
         const data = await response.json();
@@ -65,6 +73,57 @@ export default function ProfileTab() {
     } catch (error: any) {
       console.error("Error saving profile:", error);
       setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const validatePassword = (name: string, value: string) => {
+    let err = "";
+    if (name === "new") {
+      if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/.test(value)) {
+        err = "Min 8 chars, needs 1 letter & 1 number.";
+      }
+    } else if (name === "confirm") {
+      if (value !== passwords.new) {
+        err = "Passwords do not match.";
+      }
+    }
+    setPassValidationErrors(prev => ({ ...prev, [name]: err }));
+    return err === "";
+  };
+
+  const handleChangePassword = async () => {
+    const isNewValid = validatePassword("new", passwords.new);
+    const isConfirmValid = validatePassword("confirm", passwords.confirm);
+
+    if (!isNewValid || !isConfirmValid || !passwords.current) {
+      if (!passwords.current) setPassValidationErrors(p => ({ ...p, current: "Current password required." }));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const response = await fetch('/api/user/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwords.current,
+          newPassword: passwords.new
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccessMsg("Password updated successfully!");
+        setPasswords({ current: '', new: '', confirm: '' });
+        setIsChangingPassword(false);
+      } else {
+        setError(data.error || "Failed to change password");
+      }
+    } catch (err) {
+      setError("Failed to connect to server.");
     } finally {
       setSaving(false);
     }
@@ -171,6 +230,77 @@ export default function ProfileTab() {
                    {error}
                 </p>
               )}
+              {successMsg && (
+                <p className="text-xs text-green-500 font-bold mt-1 text-center bg-green-50 p-2 rounded-lg border border-green-100 italic">
+                  {successMsg}
+                </p>
+              )}
+
+              {/* Password Section */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsChangingPassword(!isChangingPassword)}
+                  className="w-full py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors"
+                >
+                  {isChangingPassword ? "Cancel Password Change" : "Change Password"}
+                </button>
+
+                {isChangingPassword && (
+                  <div className="mt-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="Current Password"
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.current ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        value={passwords.current}
+                        onChange={(e) => {
+                          setPasswords({ ...passwords, current: e.target.value });
+                          setPassValidationErrors(p => ({ ...p, current: '' }));
+                        }}
+                      />
+                      {passValidationErrors.current && <p className="text-[10px] text-red-500 font-bold mt-0.5 ml-1">{passValidationErrors.current}</p>}
+                    </div>
+
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="New Password"
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.new ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        value={passwords.new}
+                        onChange={(e) => {
+                          setPasswords({ ...passwords, new: e.target.value });
+                          validatePassword("new", e.target.value);
+                        }}
+                      />
+                      {passValidationErrors.new && <p className="text-[10px] text-red-500 font-bold mt-0.5 ml-1">{passValidationErrors.new}</p>}
+                    </div>
+
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="Confirm New Password"
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.confirm ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        value={passwords.confirm}
+                        onChange={(e) => {
+                          setPasswords({ ...passwords, confirm: e.target.value });
+                          validatePassword("confirm", e.target.value);
+                        }}
+                      />
+                      {passValidationErrors.confirm && <p className="text-[10px] text-red-500 font-bold mt-0.5 ml-1">{passValidationErrors.confirm}</p>}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={saving}
+                      className="w-full py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-black transition-colors"
+                    >
+                      {saving ? "Updating..." : "Update Password"}
+                    </button>
+                  </div>
+                )}
+              </div>
               <button 
                 type="button" 
                 onClick={() => setEditedIsPrivate(!editedIsPrivate)}

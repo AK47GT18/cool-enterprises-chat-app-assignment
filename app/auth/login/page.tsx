@@ -9,6 +9,27 @@ import { login } from "@/app/auth/actions";
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  const validateField = (name: string, value: string) => {
+    let error = "";
+    if (name === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        error = "Please enter a valid email address.";
+      }
+    } else if (name === "password") {
+      if (!value) {
+        error = "Password is required.";
+      }
+    }
+    setValidationErrors(prev => ({ ...prev, [name]: error }));
+    return error === "";
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    validateField(name, value);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -16,6 +37,17 @@ export default function LoginPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const isEmailValid = validateField("email", email);
+    const isPassValid = validateField("password", password);
+
+    if (!isEmailValid || !isPassValid) {
+      setLoading(false);
+      return;
+    }
+
     const result = await login(formData);
 
     if (result?.error) {
@@ -79,10 +111,16 @@ export default function LoginPage() {
                     required
                     name="email"
                     type="email"
+                    onChange={handleChange}
                     placeholder="name@company.com"
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
+                      validationErrors.email ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                    }`}
                   />
                 </div>
+                {validationErrors.email && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.email}</p>
+                )}
               </div>
 
               {/* Password Input Group */}
@@ -99,10 +137,16 @@ export default function LoginPage() {
                     required
                     name="password"
                     type="password"
+                    onChange={handleChange}
                     placeholder="••••••••"
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
+                      validationErrors.password ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                    }`}
                   />
                 </div>
+                {validationErrors.password && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.password}</p>
+                )}
               </div>
             </div>
 

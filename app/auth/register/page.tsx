@@ -11,6 +11,31 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  const validateField = (name: string, value: string) => {
+    let error = "";
+    if (name === "username") {
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(value)) {
+        error = "Username must be 3-20 characters (letters, numbers, underscores).";
+      }
+    } else if (name === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        error = "Please enter a valid email address.";
+      }
+    } else if (name === "password") {
+      if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/.test(value)) {
+        error = "Password must be at least 8 characters and include a letter and a number.";
+      }
+    }
+    setValidationErrors(prev => ({ ...prev, [name]: error }));
+    return error === "";
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    validateField(name, value);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -18,6 +43,19 @@ export default function RegisterPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
+    const username = formData.get("username") as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const isUserValid = validateField("username", username);
+    const isEmailValid = validateField("email", email);
+    const isPassValid = validateField("password", password);
+
+    if (!isUserValid || !isEmailValid || !isPassValid) {
+      setLoading(false);
+      return;
+    }
+
     const result = await signup(formData);
 
     if (result?.error) {
@@ -82,10 +120,16 @@ export default function RegisterPage() {
                     required
                     name="username"
                     type="text"
+                    onChange={handleChange}
                     placeholder="Choose a username"
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
+                      validationErrors.username ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                    }`}
                   />
                 </div>
+                {validationErrors.username && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.username}</p>
+                )}
               </div>
 
               {/* Email Input Group */}
@@ -97,10 +141,16 @@ export default function RegisterPage() {
                     required
                     name="email"
                     type="email"
+                    onChange={handleChange}
                     placeholder="name@company.com"
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
+                      validationErrors.email ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                    }`}
                   />
                 </div>
+                {validationErrors.email && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.email}</p>
+                )}
               </div>
 
               {/* Password Input Group */}
@@ -112,14 +162,20 @@ export default function RegisterPage() {
                     required
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    onChange={handleChange}
                     placeholder="Min 8 characters"
-                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-[14px] py-4 pl-12 pr-10 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none focus:border-[#2C6BED] focus:bg-white transition-all duration-300"
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-10 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
+                      validationErrors.password ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                    }`}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#2C6BED] transition-colors">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {validationErrors.password && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.password}</p>
+                )}
               </div>
             </div>
 

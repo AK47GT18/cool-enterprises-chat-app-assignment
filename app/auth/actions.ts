@@ -64,7 +64,7 @@ export async function signup(formData: FormData) {
     return { error: 'Password must be at least 8 characters long' };
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
     data: {
@@ -99,7 +99,7 @@ export async function logout() {
 }
 
 export async function resetPassword(formData: FormData) {
-  const token = formData.get('token') as string;
+  const token = formData.get('token') as string; // This will now represent the 6-digit code
   const password = formData.get('password') as string;
 
   if (!token || !password) {
@@ -110,6 +110,7 @@ export async function resetPassword(formData: FormData) {
     return { error: 'Password must be at least 8 characters long' };
   }
 
+  // Find the token (code) in DB
   const resetToken = await (prisma as any).passwordResetToken.findUnique({
     where: { token }
   });
@@ -118,7 +119,7 @@ export async function resetPassword(formData: FormData) {
     return { error: 'Invalid or expired token' };
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   await prisma.user.update({
     where: { email: resetToken.email },
