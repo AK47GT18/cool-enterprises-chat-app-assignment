@@ -90,7 +90,15 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
       }
 
-      return NextResponse.json(conversation);
+      const decryptedConversation = {
+        ...conversation,
+        messages: conversation.messages.map((msg: any) => ({
+          ...msg,
+          body: msg.body ? decryptMessage(msg.body) : msg.body
+        }))
+      };
+
+      return NextResponse.json(decryptedConversation);
     }
 
     const conversations = await prisma.conversation.findMany({

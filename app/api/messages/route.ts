@@ -54,7 +54,17 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json(message);
+    // Decrypt the response for the sender
+    const decryptedMessage = {
+      ...message,
+      body: message.body ? decryptMessage(message.body) : message.body,
+      replyTo: message.replyTo ? {
+        ...message.replyTo,
+        body: message.replyTo.body ? decryptMessage(message.replyTo.body) : message.replyTo.body
+      } : null
+    };
+
+    return NextResponse.json(decryptedMessage);
   } catch (err) {
     console.error("[MESSAGES_POST]", err);
     return new NextResponse("Internal Error", { status: 500 });
