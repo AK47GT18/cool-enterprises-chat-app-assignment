@@ -32,7 +32,7 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme, theme }:
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.logo}>
+      <div className={styles.logo} title="The Circle Chat App">
         <CircleDashed size={32} />
       </div>
 
