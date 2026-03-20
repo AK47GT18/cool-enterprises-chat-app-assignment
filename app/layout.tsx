@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NotificationManager from "@/components/NotificationManager";
 import InstallToast from "@/components/PWA/InstallToast";
+import AuthInterceptorProvider from "@/components/AuthInterceptorProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +36,9 @@ export default function RootLayout({
       >
         <NotificationManager />
         <InstallToast />
-        {children}
+        <AuthInterceptorProvider>
+          {children}
+        </AuthInterceptorProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `
