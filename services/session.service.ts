@@ -19,7 +19,7 @@ export const SessionService = {
 
       if (!userId) return null;
 
-      return await prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -28,9 +28,17 @@ export const SessionService = {
           image: true,
           isPrivate: true,
           isEmailVerified: true,
+          sessionToken: true,
           createdAt: true,
         },
       });
+
+      // Special check for Single Session (sessionId in token must match DB)
+      if (user && payload?.sessionId && (user as any).sessionToken !== payload.sessionId) {
+        return null;
+      }
+
+      return user;
     } catch (e) {
       console.error("SessionService: Error getting current user", e);
       return null;

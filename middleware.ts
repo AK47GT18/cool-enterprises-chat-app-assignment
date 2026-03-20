@@ -64,8 +64,17 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
 
-  // If trying to access a private route without a valid session, redirect to login
-  if (isPrivateRoute && !isValid && !isAuthRoute && !request.nextUrl.pathname.startsWith('/api')) {
+  // If trying to access a private route without a valid session
+  if (isPrivateRoute && !isValid && !isAuthRoute) {
+    // If it's an API request, return 401 Unauthorized
+    if (request.nextUrl.pathname.startsWith('/api')) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "SESSION_INVALID" }, 
+        { status: 401 }
+      );
+    }
+    
+    // Otherwise, redirect to login page
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
