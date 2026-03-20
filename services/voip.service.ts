@@ -16,8 +16,15 @@ export const VoIPService = {
   }) {
     const subscription = LocalRealtimeService.subscribe((eventName, data) => {
       // Ignore events not meant for this user/conversation
-      if (data.targetUserId && data.targetUserId !== currentUserId) return;
+      if (data.targetUserId && data.targetUserId !== currentUserId) {
+        // console.log(`[VoIP] Ignoring event ${eventName} - targetUserId mismatch`, data.targetUserId, currentUserId);
+        return;
+      }
       if (data.senderId === currentUserId) return;
+
+      if (eventName.startsWith('call:')) {
+        console.log(`[VoIP] Received ${eventName} signal:`, data);
+      }
 
       switch (eventName) {
         case REALTIME_EVENTS.CALL_INITIATE:

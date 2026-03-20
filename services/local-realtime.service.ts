@@ -1,42 +1,47 @@
-/**
- * Local Realtime Service using Server-Sent Events (SSE).
- * 100% Local, no Cloud dependencies.
- */
+let sharedEventSource: EventSource | null = null;
+const subscribers = new Set<(event: string, data: any) => void>();
+
+const LISTENERS = [
+  'message:new', 'message:update', 'message:delete', 'message:seen', 'typing:start', 'typing:stop', 
+  'recording:start', 'recording:stop', 'presence:update', 'user:update',
+  'conversation:new', 'conversation:update',
+  'call:initiate', 'call:offer', 'call:answer', 'call:ice-candidate', 
+  'call:reject', 'call:end', 'call:busy'
+];
+
+function getEventSource() {
+  if (sharedEventSource) return sharedEventSource;
+  
+  sharedEventSource = new EventSource('/api/realtime');
+  
+  LISTENERS.forEach(eventName => {
+    sharedEventSource!.addEventListener(eventName, (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        subscribers.forEach(cb => cb(eventName, data));
+      } catch (err) {
+        console.error(`Error parsing SSE data for ${eventName}:`, err);
+      }
+    });
+  });
+
+  sharedEventSource.onerror = (err) => {
+    console.error("SSE Connection Error:", err);
+    // Browser automatically reconnects
+  };
+
+  return sharedEventSource;
+}
+
 export const LocalRealtimeService = {
   subscribe(onEvent: (event: string, data: any) => void) {
-    const eventSource = new EventSource('/api/realtime');
-
-    eventSource.onmessage = (event) => {
-      // Handle generic message if needed
-    };
-
-    const listeners = [
-      'message:new', 'message:update', 'message:delete', 'message:seen', 'typing:start', 'typing:stop', 
-      'recording:start', 'recording:stop', 'presence:update', 'user:update',
-      'conversation:new', 'conversation:update',
-      'call:initiate', 'call:offer', 'call:answer', 'call:ice-candidate', 
-      'call:reject', 'call:end', 'call:busy'
-    ];
-    
-    listeners.forEach(eventName => {
-      eventSource.addEventListener(eventName, (e: any) => {
-        try {
-          const data = JSON.parse(e.data);
-          onEvent(eventName, data);
-        } catch (err) {
-          console.error(`Error parsing SSE data for ${eventName}:`, err);
-        }
-      });
-    });
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Connection Error:", err);
-      // EventSource will automatically attempt to reconnect
-    };
+    getEventSource();
+    subscribers.add(onEvent);
 
     return {
       cleanup: () => {
-        eventSource.close();
+        subscribers.delete(onEvent);
+        // Removed aggressive close to prevent flickering during component transitions
       }
     };
   },

@@ -65,6 +65,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
   const observerTargetRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
   const scrollToBottom = useCallback(() => {
@@ -280,11 +282,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           break;
 
         case 'conversation:update':
+          console.log('[ChatWindow] Conversation update:', data);
           if (data.id === chat.id && data.unblocked) {
-            // refresh page or manually clear block status? 
-            // Better to refresh conversations and hope store syncs, 
-            // but we can also force it here if we had a setChat.
-            // Since we use prop 'chat', we rely on page.tsx to update.
             refreshConversations();
           }
           break;
@@ -899,7 +898,19 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
                   onChange={(e) => {
                     setMessage(e.target.value);
                     autoResize();
-                    LocalRealtimeService.setTyping(chat.id, e.target.value.length > 0);
+                    
+                    if (chat?.id) {
+                      if (!isTypingRef.current && e.target.value.length > 0) {
+                        isTypingRef.current = true;
+                        LocalRealtimeService.setTyping(chat.id, true);
+                      }
+                      
+                      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                      typingTimeoutRef.current = setTimeout(() => {
+                        LocalRealtimeService.setTyping(chat.id, false);
+                        isTypingRef.current = false;
+                      }, 3000);
+                    }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
