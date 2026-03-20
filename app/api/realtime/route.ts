@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
         controller.enqueue(encoder.encode(payload));
       };
 
-      // Listener for new messages
+      // Listener for messages
       const onNewMessage = (data: any) => sendEvent(REALTIME_EVENTS.MESSAGE_NEW, data);
+      const onMessageUpdate = (data: any) => sendEvent(REALTIME_EVENTS.MESSAGE_UPDATE, data);
+      const onMessageDelete = (data: any) => sendEvent(REALTIME_EVENTS.MESSAGE_DELETE, data);
       const onSeen = (data: any) => sendEvent(REALTIME_EVENTS.MESSAGE_SEEN, data);
       const onTypingStart = (data: any) => sendEvent(REALTIME_EVENTS.TYPING_START, data);
       const onTypingStop = (data: any) => sendEvent(REALTIME_EVENTS.TYPING_STOP, data);
@@ -34,6 +36,8 @@ export async function GET(req: NextRequest) {
       const onConversationUpdate = (data: any) => sendEvent(REALTIME_EVENTS.CONVERSATION_UPDATE, data);
 
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_NEW, onNewMessage);
+      realtimeBus.on(REALTIME_EVENTS.MESSAGE_UPDATE, onMessageUpdate);
+      realtimeBus.on(REALTIME_EVENTS.MESSAGE_DELETE, onMessageDelete);
       realtimeBus.on(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
       realtimeBus.on(REALTIME_EVENTS.TYPING_START, onTypingStart);
       realtimeBus.on(REALTIME_EVENTS.TYPING_STOP, onTypingStop);
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
       realtimeBus.on(REALTIME_EVENTS.CALL_BUSY, onCallBusy);
       realtimeBus.on(REALTIME_EVENTS.CONVERSATION_NEW, onConversationNew);
       realtimeBus.on(REALTIME_EVENTS.CONVERSATION_UPDATE, onConversationUpdate);
+      realtimeBus.on(REALTIME_EVENTS.MESSAGE_DELETE, onMessageDelete);
 
       // Keep-alive heartbeat
       const heartbeat = setInterval(() => {
@@ -60,6 +65,8 @@ export async function GET(req: NextRequest) {
       req.signal.onabort = () => {
         clearInterval(heartbeat);
         realtimeBus.off(REALTIME_EVENTS.MESSAGE_NEW, onNewMessage);
+        realtimeBus.off(REALTIME_EVENTS.MESSAGE_UPDATE, onMessageUpdate);
+        realtimeBus.off(REALTIME_EVENTS.MESSAGE_DELETE, onMessageDelete);
         realtimeBus.off(REALTIME_EVENTS.MESSAGE_SEEN, onSeen);
         realtimeBus.off(REALTIME_EVENTS.TYPING_START, onTypingStart);
         realtimeBus.off(REALTIME_EVENTS.TYPING_STOP, onTypingStop);
@@ -76,6 +83,7 @@ export async function GET(req: NextRequest) {
         realtimeBus.off(REALTIME_EVENTS.CALL_BUSY, onCallBusy);
         realtimeBus.off(REALTIME_EVENTS.CONVERSATION_NEW, onConversationNew);
         realtimeBus.off(REALTIME_EVENTS.CONVERSATION_UPDATE, onConversationUpdate);
+        realtimeBus.off(REALTIME_EVENTS.MESSAGE_DELETE, onMessageDelete);
       };
     }
   });

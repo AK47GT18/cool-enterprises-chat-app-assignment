@@ -222,8 +222,24 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
             return [...filtered, { ...data, body: decryptedBody, sender, replyTo }];
           });
           setTimeout(scrollToBottom, 50);
-          markAsSeen(chat.id);
           fetch(`/api/conversations/${chat.id}/seen`, { method: 'POST' });
+          break;
+
+        case 'message:update':
+          setMessages((current) => {
+            return current.map(m => {
+              if (m.id === data.id) {
+                return { ...m, ...data };
+              }
+              return m;
+            });
+          });
+          break;
+
+        case 'message:delete':
+          setMessages((current) => {
+            return current.filter(m => m.id !== data.id);
+          });
           break;
 
         case 'typing:start':

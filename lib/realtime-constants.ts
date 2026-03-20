@@ -16,5 +16,6 @@ export const REALTIME_EVENTS = {
   CALL_END: 'call:end',
   CALL_BUSY: 'call:busy',
   CONVERSATION_NEW: 'conversation:new',
-  CONVERSATION_UPDATE: 'conversation:update'
+  CONVERSATION_UPDATE: 'conversation:update',
+  MESSAGE_DELETE: 'message:delete'
 };
