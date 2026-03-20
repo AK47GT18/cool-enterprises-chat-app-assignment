@@ -1,10 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+if (typeof window === 'undefined' && !JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is missing. Authentication cannot proceed.");
 }
-const secret = new TextEncoder().encode(JWT_SECRET);
+const secret = new TextEncoder().encode(JWT_SECRET || 'dummy');
 
 export async function signJWT(payload: any) {
   return await new SignJWT(payload)
