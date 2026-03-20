@@ -3,23 +3,33 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Loader2, CircleDashed } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, CircleDashed, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
 import { login } from "@/app/auth/actions";
+import { validateEmail } from "@/lib/validation";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [showPassword, setShowPassword] = useState(false);
 
-  const validateField = (name: string, value: string) => {
+  const handleBlur = (name: string) => {
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name);
+  };
+
+  const validateField = (name: string, value?: string) => {
     let error = "";
+
     if (name === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        error = "Please enter a valid email address.";
-      }
+      const emailValue = value !== undefined ? value : (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
+      const result = validateEmail(emailValue);
+      error = result.valid ? "" : result.error || "";
     } else if (name === "password") {
-      if (!value) {
-        error = "Password is required.";
+      const passwordValue = value !== undefined ? value : (document.querySelector('input[name="password"]') as HTMLInputElement)?.value || "";
+      if (!passwordValue) {
+        error = "Password is required";
       }
     }
     setValidationErrors(prev => ({ ...prev, [name]: error }));
@@ -39,6 +49,9 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+
+    // Mark all fields as touched
+    setTouched({ email: true, password: true });
 
     const isEmailValid = validateField("email", email);
     const isPassValid = validateField("password", password);
@@ -113,9 +126,8 @@ export default function LoginPage() {
                     type="email"
                     onChange={handleChange}
                     placeholder="name@company.com"
-                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
-                      validationErrors.email ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
-                    }`}
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${validationErrors.email ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                      }`}
                   />
                 </div>
                 {validationErrors.email && (
@@ -139,9 +151,8 @@ export default function LoginPage() {
                     type="password"
                     onChange={handleChange}
                     placeholder="••••••••"
-                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
-                      validationErrors.password ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
-                    }`}
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${validationErrors.password ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                      }`}
                   />
                 </div>
                 {validationErrors.password && (

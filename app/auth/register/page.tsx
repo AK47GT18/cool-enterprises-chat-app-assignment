@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, User, Loader2, Globe, ShieldCheck, Eye, EyeOff, ArrowRight, CircleDashed } from "lucide-react";
+import { Mail, Lock, User, Loader2, Globe, ShieldCheck, Eye, EyeOff, ArrowRight, CircleDashed, CheckCircle, XCircle } from "lucide-react";
 import { signup } from "@/app/auth/actions";
+import { validateEmail, validateUsername, validatePassword, getPasswordStrength, PasswordStrength } from "@/lib/validation";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
@@ -12,23 +13,35 @@ export default function RegisterPage() {
   const [isPublic, setIsPublic] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrength | null>(null);
 
-  const validateField = (name: string, value: string) => {
+  const handleBlur = (name: string) => {
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name);
+  };
+
+  const validateField = (name: string, value?: string) => {
     let error = "";
+    let newPasswordStrength = passwordStrength;
+
     if (name === "username") {
-      if (!/^[a-zA-Z0-9_]{3,20}$/.test(value)) {
-        error = "Username must be 3-20 characters (letters, numbers, underscores).";
-      }
+      const usernameValue = value !== undefined ? value : (document.querySelector('input[name="username"]') as HTMLInputElement)?.value || "";
+      const result = validateUsername(usernameValue);
+      error = result.valid ? "" : result.error || "";
     } else if (name === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        error = "Please enter a valid email address.";
-      }
+      const emailValue = value !== undefined ? value : (document.querySelector('input[name="email"]') as HTMLInputElement)?.value || "";
+      const result = validateEmail(emailValue);
+      error = result.valid ? "" : result.error || "";
     } else if (name === "password") {
-      if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/.test(value)) {
-        error = "Password must be at least 8 characters and include a letter and a number.";
-      }
+      const passwordValue = value !== undefined ? value : (document.querySelector('input[name="password"]') as HTMLInputElement)?.value || "";
+      const result = validatePassword(passwordValue);
+      error = result.valid ? "" : result.error || "";
+      newPasswordStrength = result.strength || null;
     }
+
     setValidationErrors(prev => ({ ...prev, [name]: error }));
+    setPasswordStrength(newPasswordStrength);
     return error === "";
   };
 
@@ -47,11 +60,16 @@ export default function RegisterPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
+    // Validate all fields
     const isUserValid = validateField("username", username);
     const isEmailValid = validateField("email", email);
     const isPassValid = validateField("password", password);
 
+    // Mark all as touched
+    setTouched({ username: true, email: true, password: true });
+
     if (!isUserValid || !isEmailValid || !isPassValid) {
+      setError("Please fix the errors above");
       setLoading(false);
       return;
     }
@@ -61,6 +79,16 @@ export default function RegisterPage() {
     if (result?.error) {
       setError(result.error);
       setLoading(false);
+    }
+  };
+
+  const getStrengthColor = (strength: ReturnType<typeof getPasswordStrength>) => {
+    switch (strength.color) {
+      case 'red': return 'bg-red-500';
+      case 'orange': return 'bg-orange-500';
+      case 'yellow': return 'bg-yellow-500';
+      case 'green': return 'bg-green-500';
+      default: return 'bg-gray-300';
     }
   };
 
@@ -80,7 +108,7 @@ export default function RegisterPage() {
         className="w-full max-w-xl z-10"
       >
         <div className="relative bg-white border border-[#E2E8F0] rounded-[24px] p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] overflow-hidden">
-          
+
           {/* Subtle Top Accent */}
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-[#2C6BED] to-transparent opacity-40" />
 
@@ -97,7 +125,7 @@ export default function RegisterPage() {
             <p className="text-sm text-[#6B7280] font-medium tracking-tight">Join the conversation today</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8" autoComplete="on">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
             <input type="hidden" name="isPublic" value={String(isPublic)} />
             {error && (
               <motion.div
@@ -110,7 +138,7 @@ export default function RegisterPage() {
               </motion.div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Username Input Group */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-[#111827] uppercase tracking-[0.05em] ml-0.5 opacity-60">Username</label>
@@ -121,15 +149,29 @@ export default function RegisterPage() {
                     name="username"
                     type="text"
                     onChange={handleChange}
+                    onBlur={() => handleBlur("username")}
                     placeholder="Choose a username"
-                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
-                      validationErrors.username ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
-                    }`}
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-12 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${touched.username && validationErrors.username
+                        ? "border-red-300 focus:border-red-500"
+                        : touched.username && !validationErrors.username
+                          ? "border-green-300 focus:border-green-500"
+                          : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                      }`}
                   />
+                  {touched.username && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      {validationErrors.username ? (
+                        <XCircle className="w-5 h-5 text-red-400" />
+                      ) : (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      )}
+                    </div>
+                  )}
                 </div>
-                {validationErrors.username && (
-                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.username}</p>
+                {touched.username && validationErrors.username && (
+                  <p className="text-xs text-red-500 font-semibold ml-1">{validationErrors.username}</p>
                 )}
+                <p className="text-[10px] text-[#9CA3AF] ml-1">3-20 characters, letters, numbers, underscores</p>
               </div>
 
               {/* Email Input Group */}
@@ -142,14 +184,27 @@ export default function RegisterPage() {
                     name="email"
                     type="email"
                     onChange={handleChange}
+                    onBlur={() => handleBlur("email")}
                     placeholder="name@company.com"
-                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-5 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
-                      validationErrors.email ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
-                    }`}
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-12 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${touched.email && validationErrors.email
+                        ? "border-red-300 focus:border-red-500"
+                        : touched.email && !validationErrors.email
+                          ? "border-green-300 focus:border-green-500"
+                          : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                      }`}
                   />
+                  {touched.email && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      {validationErrors.email ? (
+                        <XCircle className="w-5 h-5 text-red-400" />
+                      ) : (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      )}
+                    </div>
+                  )}
                 </div>
-                {validationErrors.email && (
-                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.email}</p>
+                {touched.email && validationErrors.email && (
+                  <p className="text-xs text-red-500 font-semibold ml-1">{validationErrors.email}</p>
                 )}
               </div>
 
@@ -163,18 +218,54 @@ export default function RegisterPage() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     onChange={handleChange}
+                    onBlur={() => handleBlur("password")}
                     placeholder="Min 8 characters"
-                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-10 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${
-                      validationErrors.password ? "border-red-300 focus:border-red-500" : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
-                    }`}
+                    className={`w-full bg-[#F8FAFC] border rounded-[14px] py-4 pl-12 pr-10 text-base font-medium text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-all duration-300 ${touched.password && validationErrors.password
+                        ? "border-red-300 focus:border-red-500"
+                        : touched.password && !validationErrors.password
+                          ? "border-green-300 focus:border-green-500"
+                          : "border-[#E2E8F0] focus:border-[#2C6BED] focus:bg-white"
+                      }`}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#2C6BED] transition-colors">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {validationErrors.password && (
-                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationErrors.password}</p>
+
+                {/* Password Strength Indicator */}
+                {passwordStrength && (
+                  <div className="space-y-1.5 mt-2">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map((level) => (
+                        <div
+                          key={level}
+                          className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${level <= passwordStrength.score
+                              ? getStrengthColor(passwordStrength)
+                              : 'bg-gray-200'
+                            }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className={`text-xs font-semibold ${passwordStrength.color === 'red' ? 'text-red-500' :
+                          passwordStrength.color === 'orange' ? 'text-orange-500' :
+                            passwordStrength.color === 'yellow' ? 'text-yellow-600' :
+                              'text-green-500'
+                        }`}>
+                        {passwordStrength.label}
+                      </p>
+                      {passwordStrength.suggestions.length > 0 && (
+                        <p className="text-[10px] text-[#9CA3AF]">
+                          {passwordStrength.suggestions[0]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {touched.password && validationErrors.password && (
+                  <p className="text-xs text-red-500 font-semibold ml-1">{validationErrors.password}</p>
                 )}
               </div>
             </div>

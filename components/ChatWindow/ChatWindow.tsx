@@ -9,7 +9,15 @@ import { useChatStore } from '@/hooks/useChatStore';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 
 interface ChatWindowProps {
-  chat: { id: string; name: string; avatar: string; imageUrl?: string; online?: boolean; isGroup?: boolean } | null;
+  chat: { 
+    id: string; 
+    name: string; 
+    avatar: string; 
+    imageUrl?: string; 
+    online?: boolean; 
+    isGroup?: boolean;
+    blockStatus?: string | null;
+  } | null;
   onBack: () => void;
   isMobileWindowVisible: boolean;
   onStartCall?: (callType: 'audio') => void;
@@ -785,7 +793,16 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
         )}
       </AnimatePresence>
 
-      {/* Input Area */}
+      {/* Input Area or Blocked State */}
+      {chat.blockStatus === 'you_blocked' ? (
+        <div className="w-full flex justify-center p-4 bg-[#f0f2f5] dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+          <p className="text-sm font-bold text-red-500">You have blocked this contact. Unblock from Profile to send messages.</p>
+        </div>
+      ) : chat.blockStatus === 'blocked_by' ? (
+        <div className="w-full flex justify-center p-4 bg-[#f0f2f5] dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+          <p className="text-sm font-bold text-slate-500">You have been blocked by this contact.</p>
+        </div>
+      ) : (
       <div className={styles.inputArea}>
         <input 
           type="file" 
@@ -910,6 +927,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Global UI Overlays */}
       <AnimatePresence>

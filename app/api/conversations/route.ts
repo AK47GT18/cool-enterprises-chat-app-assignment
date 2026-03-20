@@ -131,28 +131,56 @@ export async function GET(req: Request) {
       }
     });
 
+    // Sort by most recent message time (fallback to conversation createdAt)
+    conversations.sort((a, b) => {
+      const aTime = a.messages[0]?.createdAt || a.createdAt;
+      const bTime = b.messages[0]?.createdAt || b.createdAt;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+
+    // Fetch block statuses for 1-on-1 chats
+    const blockedPairs = await prisma.contactRequest.findMany({
+      where: {
+        status: 'BLOCKED',
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id }
+        ]
+      },
+      select: { senderId: true, receiverId: true }
+    });
+
     const formattedConversations = conversations.map(chat => {
       let displayName = chat.name;
       let displayImage = chat.imageUrl;
+      let blockStatus: string | null = null;
 
       if (!chat.isGroup) {
         const otherMember = chat.members.find((m: any) => m.userId !== user.id);
         if (otherMember) {
           displayName = otherMember.user.username;
           displayImage = otherMember.user.image;
+
+          // Check block status
+          const iBlockedThem = blockedPairs.some(b => b.senderId === user.id && b.receiverId === otherMember.userId);
+          const theyBlockedMe = blockedPairs.some(b => b.senderId === otherMember.userId && b.receiverId === user.id);
+          if (iBlockedThem) blockStatus = 'you_blocked';
+          else if (theyBlockedMe) blockStatus = 'blocked_by';
         }
       }
 
-      const lastMessage = chat.messages[0] ? {
-        ...chat.messages[0],
-        body: chat.messages[0].body ? decryptMessage(chat.messages[0].body) : chat.messages[0].body
+      const msg = chat.messages[0];
+      const lastMessage = msg ? {
+        ...msg,
+        body: msg.body ? decryptMessage(msg.body) : msg.body
       } : null;
 
       return {
         ...chat,
         name: displayName,
         imageUrl: displayImage,
-        messages: lastMessage ? [lastMessage] : []
+        messages: lastMessage ? [lastMessage] : [],
+        blockStatus
       };
     });
 

@@ -76,5 +76,47 @@ export const EmailService = {
       console.error('Failed to send group invite email:', error);
       return { success: false, error };
     }
+  },
+
+  /**
+   * Send email verification email
+   */
+  async sendVerificationEmail(to: string, username: string, verificationUrl: string) {
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #1e293b; text-align: center;">Verify Your Email</h2>
+        <p style="color: #475569; font-size: 16px; text-align: center;">
+          Hi <strong>${username}</strong>, thank you for creating an account!
+        </p>
+        <p style="color: #475569; font-size: 16px; text-align: center;">
+          Please verify your email address to start using Cool Chat:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+            Verify Email
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 14px; text-align: center;">
+          This link will expire in 24 hours. If you didn't create an account, please ignore this email.
+        </p>
+        <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 20px;">
+          Or copy this link to your browser:<br/>
+          <span style="color: #2563eb; word-break: break-all;">${verificationUrl}</span>
+        </p>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: DEFAULT_FROM,
+        to,
+        subject: 'Verify your Cool Chat email',
+        html,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      return { success: false, error };
+    }
   }
 };

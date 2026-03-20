@@ -191,6 +191,10 @@ function MainContent() {
     refreshConversations();
   };
 
+  const handleClearChat = () => {
+    refreshConversations();
+  };
+
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
@@ -273,6 +277,7 @@ function MainContent() {
             isMobile={mobileView === 'info'}
             onDeleteCommunity={handleDeleteCommunity}
             onLeaveCommunity={handleLeaveCommunity}
+            onClearChat={handleClearChat}
           />
         </div>
       </div>

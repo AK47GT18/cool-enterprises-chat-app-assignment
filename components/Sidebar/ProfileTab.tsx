@@ -174,6 +174,7 @@ export default function ProfileTab() {
 
   // Public groups the user is in (private ones hidden)
   const publicGroups = conversations.filter((c: any) => c.isGroup && c.isPublicGroup);
+  const privateGroups = conversations.filter((c: any) => c.isGroup && !c.isPublicGroup);
 
   if (loading) {
     return (
@@ -196,19 +197,16 @@ export default function ProfileTab() {
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
         {/* Avatar */}
         <div className="flex flex-col items-center">
-          <div className="relative group">
+          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <img
               src={profile?.image || `https://ui-avatars.com/api/?name=${profile?.username}&background=random&size=120`}
               alt="Profile"
-              className="w-24 h-24 rounded-full object-cover shadow-lg"
+              className="w-24 h-24 rounded-full object-cover shadow-lg hover:opacity-80 transition-opacity"
             />
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 p-2 bg-blue-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Camera size={14} />
-            </button>
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera size={24} className="text-white" />
+            </div>
           </div>
 
           {isEditing ? (
@@ -384,6 +382,31 @@ export default function ProfileTab() {
                     <p className="text-[10px] text-slate-400">{group.members?.length || 0} members</p>
                   </div>
                   <Globe size={14} className="text-green-500" />
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Private Communities */}
+        <div>
+          <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Private Communities</h4>
+          <div className="space-y-2">
+            {privateGroups.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No private communities joined yet.</p>
+            ) : (
+              privateGroups.map((group: any) => (
+                <div key={group.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+                  <img
+                    src={group.imageUrl || `https://ui-avatars.com/api/?name=${group.name}&background=random`}
+                    alt={group.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-[#111827] dark:text-white truncate">{group.name}</p>
+                    <p className="text-[10px] text-slate-400">{group.members?.length || 0} members</p>
+                  </div>
+                  <Shield size={14} className="text-slate-500" />
                 </div>
               ))
             )}

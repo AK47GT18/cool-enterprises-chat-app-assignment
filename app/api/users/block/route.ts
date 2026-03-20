@@ -2,28 +2,21 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
 
-export async function POST(
-  req: Request
-) {
+// DELETE - Unblock a user
+export async function DELETE(req: Request) {
   try {
-    const { userId } = await req.json();
     const { user: currentUser, error: authError } = await SessionService.requireAuth();
     if (authError) return authError;
 
+    const { userId } = await req.json();
+
     if (!userId) {
-      return new NextResponse("User ID is required", { status: 400 });
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // Update or create a contact request with status BLOCKED
-    await prisma.contactRequest.upsert({
+    // Find and delete the BLOCKED contact request
+    await prisma.contactRequest.deleteMany({
       where: {
-        senderId_receiverId: {
-          senderId: currentUser.id,
-          receiverId: userId
-        }
-      },
-      update: { status: 'BLOCKED' },
-      create: {
         senderId: currentUser.id,
         receiverId: userId,
         status: 'BLOCKED'
@@ -32,7 +25,44 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("[UNBLOCK_USER]", err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// GET - Get list of users the current user has blocked
+export async function GET() {
+  try {
+    const { user: currentUser, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
+
+    const blockedRequests = await prisma.contactRequest.findMany({
+      where: {
+        senderId: currentUser.id,
+        status: 'BLOCKED'
+      },
+      include: {
+        receiver: {
+          select: {
+            id: true,
+            username: true,
+            image: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    const blockedUsers = blockedRequests.map(br => ({
+      id: br.receiver.id,
+      username: br.receiver.username,
+      image: br.receiver.image,
+      email: br.receiver.email
+    }));
+
+    return NextResponse.json(blockedUsers);
+  } catch (err) {
+    console.error("[BLOCKED_USERS_GET]", err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

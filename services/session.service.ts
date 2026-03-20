@@ -27,6 +27,7 @@ export const SessionService = {
           username: true,
           image: true,
           isPrivate: true,
+          isEmailVerified: true,
           createdAt: true,
         },
       });
@@ -42,9 +43,9 @@ export const SessionService = {
   async requireAuth() {
     const user = await this.getCurrentUser();
     if (!user) {
-      return { 
-        user: null, 
-        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) 
+      return {
+        user: null,
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       };
     }
     return { user, error: null };

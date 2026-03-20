@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Search, Filter, Check, X } from 'lucide-react';
+import { Search, Filter, Check, X, ShieldOff } from 'lucide-react';
 import styles from './SidebarTab.module.css';
 import clsx from 'clsx';
 import { useChatStore } from '@/hooks/useChatStore';
@@ -15,7 +15,9 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
   const [searchQuery, setSearchQuery] = React.useState('');
   const [results, setResults] = React.useState<any[]>([]);
   const [isSearching, setIsSearching] = React.useState(false);
-  const [filter, setFilter] = React.useState<'all' | 'friends' | 'requests' | 'discover'>('all');
+  const [filter, setFilter] = React.useState<'all' | 'friends' | 'requests' | 'discover' | 'blocked'>('all');
+  const [blockedUsers, setBlockedUsers] = React.useState<any[]>([]);
+  const [loadingBlocked, setLoadingBlocked] = React.useState(false);
   const { conversations, currentUser, pendingHollers, refreshPendingHollers, refreshConversations } = useChatStore();
 
   React.useEffect(() => {
@@ -40,6 +42,18 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Fetch blocked users when tab is selected
+  React.useEffect(() => {
+    if (filter === 'blocked') {
+      setLoadingBlocked(true);
+      fetch('/api/users/block')
+        .then(res => res.json())
+        .then(data => setBlockedUsers(data))
+        .catch(err => console.error(err))
+        .finally(() => setLoadingBlocked(false));
+    }
+  }, [filter]);
+
   const handleHoller = async (userId: string) => {
     try {
       const response = await fetch('/api/contact-requests', {
@@ -52,7 +66,6 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
         console.error("Failed to send holler:", errorData.error);
         return;
       }
-      // Success will be reflected on next search/poll
     } catch (err) {
       console.error(err);
     }
@@ -67,22 +80,34 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
       });
       if (res.ok) {
         if (status === 'ACCEPTED') {
-          // Find the request in pendingHollers to get the sender's details
           const req = pendingHollers.find(r => r.id === requestId);
           if (req) {
-            // Add to local results if not already there, or update if it is
             setResults(prev => {
               const exists = prev.find(u => u.id === req.senderId);
               if (exists) {
                 return prev.map(u => u.id === req.senderId ? { ...u, hollerStatus: 'ACCEPTED' } : u);
               }
-              // If not in search results, we might not want to add it forcefully, 
-              // but the store refresh will handle the list view anyway.
               return prev;
             });
           }
         }
         refreshPendingHollers();
+        refreshConversations();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUnblock = async (userId: string) => {
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (res.ok) {
+        setBlockedUsers(prev => prev.filter(u => u.id !== userId));
         refreshConversations();
       }
     } catch (err) {
@@ -112,14 +137,16 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
         </div>
 
         <div className="flex gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar">
-          {['all', 'friends', 'requests', 'discover'].map((f) => (
+          {['all', 'friends', 'requests', 'discover', 'blocked'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f as any)}
               className={clsx(
                 "px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border",
                 filter === f 
-                  ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white" 
+                  ? f === 'blocked'
+                    ? "bg-red-600 text-white border-red-600 dark:bg-red-500 dark:border-red-500"
+                    : "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white"
                   : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
               )}
             >
@@ -137,12 +164,44 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
       <div className={styles.list}>
          {isSearching && <p className={styles.statusMsg}>Searching for matches...</p>}
          
-         {!isSearching && searchQuery.length >= 2 && results.length === 0 && (
+         {!isSearching && searchQuery.length >= 2 && results.length === 0 && filter !== 'blocked' && (
            <p className={styles.statusMsg}>No users found with that name.</p>
          )}
 
+         {/* Blocked Section */}
+         {filter === 'blocked' && (
+           <>
+             <p className={styles.sectionTitle}>Blocked Users</p>
+             {loadingBlocked ? (
+               <div className="flex flex-col items-center justify-center h-20 opacity-50">
+                 <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+               </div>
+             ) : blockedUsers.length === 0 ? (
+               <p className={styles.statusMsg}>No blocked users.</p>
+             ) : (
+               blockedUsers.map((user) => (
+                 <div key={user.id} className={styles.contactItem}>
+                   <div className={styles.contactInfo}>
+                     <img src={user.image || `https://ui-avatars.com/api/?name=${user.username}&background=random`} alt="" className={styles.avatar} />
+                     <div className="flex flex-col">
+                       <div className={styles.username}>@{user.username}</div>
+                       <span className="text-[10px] text-red-500 font-bold">Blocked</span>
+                     </div>
+                   </div>
+                   <button 
+                     onClick={() => handleUnblock(user.id)}
+                     className="px-3 py-1.5 bg-green-500 text-white text-[11px] font-bold rounded-xl hover:bg-green-600 transition-colors flex items-center gap-1"
+                   >
+                     <ShieldOff size={12} /> Unblock
+                   </button>
+                 </div>
+               ))
+             )}
+           </>
+         )}
+
          {/* Requests Section */}
-         {(filter === 'all' || filter === 'requests') && pendingHollers.length > 0 && searchQuery.length === 0 && (
+         {filter !== 'blocked' && (filter === 'all' || filter === 'requests') && pendingHollers.length > 0 && searchQuery.length === 0 && (
             <>
               <p className={styles.sectionTitle}>Friend Requests</p>
               {pendingHollers.map((req) => (
@@ -177,7 +236,7 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
             </>
          )}
 
-         {results.length > 0 && (
+         {filter !== 'blocked' && results.length > 0 && (
            <>
              {/* Friends Section */}
              {(filter === 'all' || filter === 'friends') && results.some(u => u.hollerStatus === 'ACCEPTED') && (
@@ -233,7 +292,7 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
            </>
          )}
 
-         {!isSearching && results.length === 0 && (
+         {filter !== 'blocked' && !isSearching && results.length === 0 && (
             <div className={styles.statusMsg}>
               {searchQuery.length >= 2 ? "No users found with that name." : "No public users found yet."}
             </div>

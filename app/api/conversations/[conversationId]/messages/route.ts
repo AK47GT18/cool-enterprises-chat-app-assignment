@@ -36,7 +36,8 @@ export async function GET(
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
       where: {
-        conversationId
+        conversationId,
+        ...(member.clearedAt ? { createdAt: { gt: member.clearedAt } } : {})
       },
       orderBy: {
         createdAt: 'desc'

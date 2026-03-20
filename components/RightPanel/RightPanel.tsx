@@ -15,11 +15,12 @@ interface RightPanelProps {
   isMobile?: boolean;
   onDeleteCommunity?: () => void;
   onLeaveCommunity?: () => void;
+  onClearChat?: () => void;
 }
 
 import { LocalRealtimeService } from '@/services/local-realtime.service';
 
-export default function RightPanel({ chat, onClose, isVisible, onStartCall, onBack, isMobile, onDeleteCommunity, onLeaveCommunity }: RightPanelProps) {
+export default function RightPanel({ chat, onClose, isVisible, onStartCall, onBack, isMobile, onDeleteCommunity, onLeaveCommunity, onClearChat }: RightPanelProps) {
   const { currentUser } = useChatStore();
   const [activeView, setActiveView] = React.useState<'files' | 'profile' | 'members'>('profile');
   const [fullChat, setFullChat] = React.useState<any>(null);
@@ -382,6 +383,23 @@ export default function RightPanel({ chat, onClose, isVisible, onStartCall, onBa
                     <ShieldAlert size={18} /> Block User
                   </button>
                 )}
+                <button 
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to clear this chat? This will remove all messages for you, but won't affect others.")) return;
+                    try {
+                      const res = await fetch(`/api/conversations/${chat.id}/clear`, { method: 'POST' });
+                      if (res.ok) {
+                        onClose();
+                        onClearChat?.();
+                      }
+                    } catch (err) {
+                      console.error("Failed to clear chat:", err);
+                    }
+                  }}
+                  className={styles.dangerActionBtn}
+                >
+                  <Trash2 size={18} /> Clear Chat
+                </button>
                 <button 
                   onClick={handleLeaveConversation}
                   className={styles.dangerActionBtn}
