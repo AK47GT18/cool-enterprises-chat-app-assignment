@@ -2,7 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
-import { handleAuthRedirect } from '@/lib/auth-handler';
+
+function redirectToLogin() {
+  if (typeof window !== 'undefined') {
+    window.location.replace('/auth/login');
+  }
+}
 
 export interface CallLog {
   id: string;
@@ -100,8 +105,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const fetchConversations = useCallback(async () => {
     try {
       const response = await fetch('/api/conversations');
-      // Check for unauthorized and redirect to login
-      if (handleAuthRedirect(response)) return;
+      if (response.status === 401) { redirectToLogin(); return; }
 
       if (response.ok) {
         const data = await response.json();
@@ -117,8 +121,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const fetchPendingHollers = useCallback(async () => {
     try {
       const response = await fetch('/api/contact-requests');
-      // Check for unauthorized and redirect to login
-      if (handleAuthRedirect(response)) return;
+      if (response.status === 401) { redirectToLogin(); return; }
 
       if (response.ok) {
         const data = await response.json();
@@ -333,10 +336,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
 
     fetch('/api/user/profile')
       .then((res) => {
-        // Check for unauthorized and redirect to login
-        if (handleAuthRedirect(res)) {
-          return null;
-        }
+        if (res.status === 401) { redirectToLogin(); return null; }
         return res.ok ? res.json() : null;
       })
       .then(user => {

@@ -39,7 +39,14 @@ function MainContent() {
   // true = Chrome blocked autoplay, show "Unmute Audio" button in call UI
   const [audioBlocked, setAudioBlocked] = useState(false);
 
-  const { refreshConversations, currentUser, conversations } = useChatStore();
+  const { refreshConversations, currentUser, conversations, loading } = useChatStore();
+
+  // SAFETY NET: if done loading and no user, go to login
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      window.location.replace('/auth/login');
+    }
+  }, [loading, currentUser]);
 
   const {
     callState, incomingCall, error: callError,
