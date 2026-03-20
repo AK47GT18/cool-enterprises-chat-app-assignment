@@ -6,13 +6,14 @@ import { REALTIME_EVENTS } from '@/lib/realtime-constants';
 
 export async function POST(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const { user, error: authError } = await SessionService.requireAuth();
     if (authError) return authError;
 
-    const targetUserId = params.userId;
+    const { userId } = await params;
+    const targetUserId = userId;
 
     if (targetUserId === user.id) {
        return NextResponse.json({ error: "Cannot block yourself" }, { status: 400 });
