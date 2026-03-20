@@ -138,8 +138,13 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
           setConversations(current => {
             const index = current.findIndex(c => c.id === data.conversationId);
             if (index === -1) {
-               fetchConversations();
-               return current;
+                const now = Date.now();
+                const lastFetch = (window as any)._lastConvoFetch || 0;
+                if (now - lastFetch > 2000) {
+                   (window as any)._lastConvoFetch = now;
+                   fetchConversations();
+                }
+                return current;
             }
 
             // Clear typing status for this user when message arrives

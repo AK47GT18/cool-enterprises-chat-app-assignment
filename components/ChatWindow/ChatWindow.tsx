@@ -430,7 +430,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
     setTimeout(scrollToBottom, 50);
 
     try {
-      await fetch('/api/messages', {
+      const response = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -440,10 +440,16 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           ...attachments
         })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
       setReplyingTo(null);
       LocalRealtimeService.setTyping(chat.id, false);
     } catch (error) {
       console.error("Failed to send message:", error);
+      alert("Message failed to send. Please check your connection and try again.");
       // Remove optimistic message on failure
       setMessages((current) => current.filter(m => m.id !== optimisticMsg.id));
     }

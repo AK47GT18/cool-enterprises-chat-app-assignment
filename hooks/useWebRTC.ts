@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { VoIPService } from '@/services/voip.service';
 import { useChatStore } from '@/hooks/useChatStore';
 
-export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
+export type CallState = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended';
 
 export interface IncomingCallData {
   callerId: string;
@@ -31,6 +31,22 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    // TURN servers for mobile NAT traversal
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
   ],
 };
 
@@ -61,6 +77,7 @@ export const useWebRTC = (): UseWebRTCReturn => {
 
   const callStateRef = useRef<CallState>('idle');
   const pendingAcceptRef = useRef(false);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Wrapper for setCallState that keeps the ref in sync
   const setCallStateWithRef = useCallback((newState: CallState) => {
@@ -77,6 +94,10 @@ export const useWebRTC = (): UseWebRTCReturn => {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
+    }
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
     }
 
     localStream?.getTracks().forEach((track) => track.stop());
@@ -119,16 +140,38 @@ export const useWebRTC = (): UseWebRTCReturn => {
 
     peerConnection.onconnectionstatechange = () => {
       const state = peerConnection.connectionState;
+      console.log('[WebRTC] Connection state change:', state);
+      
+      // Clear any existing fallback timer
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+
       if (state === 'connected') {
-        setCallState('connected');
-        const start = Date.now();
-        durationIntervalRef.current = setInterval(() => {
-          setCallDuration(Math.floor((Date.now() - start) / 1000));
-        }, 1000);
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+          callTimeoutRef.current = null;
+        }
+        setCallStateWithRef('connected');
+        if (!durationIntervalRef.current) {
+          const start = Date.now();
+          durationIntervalRef.current = setInterval(() => {
+            setCallDuration(Math.floor((Date.now() - start) / 1000));
+          }, 1000);
+        }
       } else if (state === 'failed' || state === 'disconnected') {
         setError('Connection lost.');
         setCallState('ended');
         cleanup();
+      } else if (state === 'connecting') {
+        // Fallback: If we're stuck in 'connecting' but tracks are flowing, force 'connected'
+        fallbackTimerRef.current = setTimeout(() => {
+          if (pc.current && pc.current.connectionState === 'connecting' && pc.current.iceConnectionState === 'connected') {
+            console.log('[WebRTC] ConnectionState stuck in connecting. Forcing connected state via fallback.');
+            setCallStateWithRef('connected');
+          }
+        }, 5000);
       }
     };
 
@@ -228,11 +271,12 @@ export const useWebRTC = (): UseWebRTCReturn => {
     if (!pc.current) {
       console.log('[WebRTC] Accepting call before offer arrived. Flagging pending accept.');
       pendingAcceptRef.current = true;
-      setCallStateWithRef('ringing'); // Stay in ringing, don't jump to connected
+      setCallStateWithRef('connecting');
       return;
     }
 
     setError(null);
+    setCallStateWithRef('connecting');
     try {
       const stream = await getUserMedia(incomingCall.callType);
       stream.getTracks().forEach((track) => pc.current?.addTrack(track, stream));

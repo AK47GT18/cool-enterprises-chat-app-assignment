@@ -35,17 +35,19 @@ export default function ActiveCallUI({
   onEndCall,
   onToggleMute,
 }: ActiveCallUIProps) {
-  // 'ringing' is NOT included - the receiver should see IncomingCallModal instead
-  const isVisible = ['calling', 'connected', 'ended'].includes(callState);
+  // Show UI for all active stages
+  const isVisible = ['calling', 'ringing', 'connecting', 'connected', 'ended'].includes(callState);
 
   const avatarUrl = callerAvatar
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerName || 'U')}&background=random&size=256`;
 
   const statusText = callState === 'calling'
     ? 'Calling...'
-    : callState === 'connected'
-      ? 'Connected'
-      : 'Call Ended';
+    : (callState === 'connecting' || callState === 'ringing')
+      ? 'Connecting...'
+      : callState === 'connected'
+        ? 'Connected'
+        : 'Call Ended';
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
