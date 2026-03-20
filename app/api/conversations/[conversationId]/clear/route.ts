@@ -5,13 +5,13 @@ import { realtimeBus, REALTIME_EVENTS } from '@/lib/realtime-bus';
 
 export async function POST(
   req: Request,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
     const { user: currentUser, error: authError } = await SessionService.requireAuth();
     if (authError) return authError;
 
-    const { conversationId } = params;
+    const { conversationId } = await params;
 
     const membership = await prisma.userConversation.findUnique({
       where: {
