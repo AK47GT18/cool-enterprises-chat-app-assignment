@@ -551,7 +551,7 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
                     (() => {
                       const otherMember = fullChat?.members?.find((m: any) => m.userId !== currentUser?.id);
                       return (otherMember && presence[otherMember.userId]) 
-                        ? ((Date.now() - presence[otherMember.userId] < 5 * 60 * 1000) ? 'Online' : 'Offline') 
+                        ? ((Date.now() - presence[otherMember.userId] < 60000) ? 'Online' : 'Offline') 
                         : 'Offline';
                     })()
                   )}

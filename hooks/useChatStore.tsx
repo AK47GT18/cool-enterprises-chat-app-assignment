@@ -290,27 +290,27 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Broadcast presence every 1 min
+    // Broadcast presence every 20s
     LocalRealtimeService.setPresence('online');
     const pingInterval = setInterval(() => {
       LocalRealtimeService.setPresence('online');
-    }, 60000);
+    }, 20000);
 
-    // Prune stale presence (5 mins) every minute
+    // Prune stale presence (1 min) every 30s
     const pruneInterval = setInterval(() => {
       const now = Date.now();
       setPresence(prev => {
         const next = { ...prev };
         let changed = false;
         for (const [userId, timestamp] of Object.entries(next)) {
-          if (now - (timestamp as number) > 5 * 60 * 1000) {
+          if (now - (timestamp as number) > 60000) {
             delete next[userId];
             changed = true;
           }
         }
         return changed ? next : prev;
       });
-    }, 60000);
+    }, 30000);
 
     return () => {
       subscription.cleanup();

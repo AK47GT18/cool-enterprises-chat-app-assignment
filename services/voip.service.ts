@@ -59,9 +59,9 @@ export const VoIPService = {
       }
     });
 
-    const sendSignal = async (event: string, data: any) => {
+    const sendSignal = async (event: string, data: any, retryCount = 0) => {
       try {
-        await fetch('/api/calls/signal', {
+        const response = await fetch('/api/calls/signal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -69,8 +69,17 @@ export const VoIPService = {
             data: { ...data, senderId: currentUserId }
           })
         });
+
+        if (!response.ok && retryCount < 2) {
+           throw new Error(`Signal failed with ${response.status}`);
+        }
       } catch (err) {
-        console.error(`Error sending signal ${event}:`, err);
+        console.error(`Error sending signal ${event} (attempt ${retryCount + 1}):`, err);
+        if (retryCount < 2) {
+          // Retry with linear backoff (1s)
+          await new Promise(r => setTimeout(r, 1000));
+          return sendSignal(event, data, retryCount + 1);
+        }
       }
     };
 
