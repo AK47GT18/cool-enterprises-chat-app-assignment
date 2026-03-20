@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from 'clsx';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./page.module.css";
 import Sidebar from "@/components/Sidebar/Sidebar";
 import ChatList from "@/components/ChatList/ChatList";
@@ -34,40 +34,28 @@ function MainContent() {
   const [activeSidebarTab, setActiveSidebarTab] = useState("chats");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
-
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("list");
+  // true = Chrome blocked autoplay, show "Unmute Audio" button in call UI
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   const { refreshConversations, currentUser, conversations } = useChatStore();
 
   const {
-    callState,
-    incomingCall,
-    error: callError,
-    remoteStream,
-    isMuted,
-    callDuration,
-    startCall,
-    acceptCall,
-    rejectCall,
-    endCall,
-    toggleMute,
+    callState, incomingCall, error: callError,
+    remoteStream, isMuted, callDuration,
+    startCall, acceptCall, rejectCall, endCall, toggleMute,
   } = useWebRTC();
 
   const [activeCallInfo, setActiveCallInfo] = useState<{ name: string; avatar: string } | null>(null);
 
   useEffect(() => {
-    if (callState !== 'idle') {
-      console.log('[Page] Current Call State:', callState);
-    }
+    if (callState !== 'idle') console.log('[Page] Call State:', callState);
   }, [callState]);
 
   useEffect(() => {
     if (incomingCall) {
-      setActiveCallInfo({
-        name: incomingCall.callerName,
-        avatar: incomingCall.callerAvatar,
-      });
+      setActiveCallInfo({ name: incomingCall.callerName, avatar: incomingCall.callerAvatar });
     }
   }, [incomingCall]);
 
@@ -82,51 +70,64 @@ function MainContent() {
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  // FIXED: pipe stream AND explicitly call .play() to handle autoplay restrictions
+  const tryPlayAudio = useCallback(() => {
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl) return;
+    audioEl.play()
+      .then(() => {
+        console.log('[Audio] Playing successfully');
+        setAudioBlocked(false);
+      })
+      .catch((err) => {
+        // Chrome autoplay policy blocked it — show the "Unmute Audio" button
+        console.warn('[Audio] Autoplay blocked:', err.message);
+        setAudioBlocked(true);
+      });
+  }, []);
+
+  // Attach stream to audio element as soon as it arrives
   useEffect(() => {
     const audioEl = remoteAudioRef.current;
     if (!audioEl || !remoteStream) return;
-
+    console.log('[Audio] Attaching remote stream');
     audioEl.srcObject = remoteStream;
+    tryPlayAudio();
+  }, [remoteStream, tryPlayAudio]);
 
-    audioEl.play().catch((err) => {
-      // Autoplay was blocked — this happens on mobile until user interaction
-      console.warn('[Audio] Autoplay blocked, waiting for user interaction:', err);
+  // Retry play when call transitions to connected
+  // (stream may have arrived before this state on the caller side)
+  useEffect(() => {
+    if (callState === 'connected') {
+      const audioEl = remoteAudioRef.current;
+      if (audioEl && audioEl.srcObject) {
+        tryPlayAudio();
+      }
+    }
+    if (callState === 'idle' || callState === 'ended') {
+      setAudioBlocked(false);
+    }
+  }, [callState, tryPlayAudio]);
 
-      // Retry on next user interaction (tap/click)
-      const retryPlay = () => {
-        audioEl.play().catch(console.error);
-        document.removeEventListener('click', retryPlay);
-        document.removeEventListener('touchstart', retryPlay);
-      };
-      document.addEventListener('click', retryPlay, { once: true });
-      document.addEventListener('touchstart', retryPlay, { once: true });
-    });
-  }, [remoteStream]);
+  // User clicks "Unmute Audio" button — this is a direct user gesture so play() will succeed
+  const handleUnmuteAudio = () => {
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl) return;
+    if (remoteStream && audioEl.srcObject !== remoteStream) {
+      audioEl.srcObject = remoteStream;
+    }
+    tryPlayAudio();
+  };
 
   const handleStartCall = async (callType: 'audio' | 'video') => {
     if (!selectedChat || selectedChat.isGroup || !currentUser) return;
-
     try {
       const res = await fetch(`/api/conversations/${selectedChat.id}`);
       if (!res.ok) return;
       const chatData = await res.json();
-
       const recipient = chatData.members?.find((m: any) => m.userId !== currentUser.id);
       if (!recipient) return;
-
-      setActiveCallInfo({
-        name: selectedChat.name,
-        avatar: selectedChat.avatar,
-      });
-
-      await startCall(
-        recipient.userId,
-        selectedChat.id,
-        currentUser.username || 'User',
-        currentUser.image || '',
-        callType,
-      );
+      setActiveCallInfo({ name: selectedChat.name, avatar: selectedChat.avatar });
+      await startCall(recipient.userId, selectedChat.id, currentUser.username || 'User', currentUser.image || '', callType);
     } catch (err) {
       console.error("Error starting call:", err);
     }
@@ -134,12 +135,9 @@ function MainContent() {
 
   useEffect(() => {
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (isDark) {
-      setTheme("dark");
-      document.documentElement.setAttribute("data-theme", "dark");
-    } else {
-      document.documentElement.setAttribute("data-theme", "light");
-    }
+    const t = isDark ? "dark" : "light";
+    setTheme(t);
+    document.documentElement.setAttribute("data-theme", t);
   }, []);
 
   const toggleTheme = () => {
@@ -148,11 +146,7 @@ function MainContent() {
     document.documentElement.setAttribute("data-theme", newTheme);
   };
 
-  const handleSelectChat = (id: string, chat: any) => {
-    setSelectedChat(chat);
-    setMobileView("chat");
-  };
-
+  const handleSelectChat = (id: string, chat: any) => { setSelectedChat(chat); setMobileView("chat"); };
   const handleBackToList = () => setMobileView("list");
   const handleShowInfo = () => setMobileView("info");
   const handleBackFromInfo = () => setMobileView("chat");
@@ -176,20 +170,9 @@ function MainContent() {
     }
   };
 
-  const handleDeleteCommunity = () => {
-    setSelectedChat(null);
-    setMobileView("list");
-    refreshConversations();
-  };
-
-  const handleLeaveCommunity = () => {
-    setSelectedChat(null);
-    setMobileView("list");
-    refreshConversations();
-  };
-
+  const handleDeleteCommunity = () => { setSelectedChat(null); setMobileView("list"); refreshConversations(); };
+  const handleLeaveCommunity = () => { setSelectedChat(null); setMobileView("list"); refreshConversations(); };
   const handleClearChat = () => refreshConversations();
-
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   return (
@@ -200,72 +183,23 @@ function MainContent() {
         mobileView === 'info' && styles.isInfoOpen
       )}>
         <div className={styles.floatingWrapper}>
-          <Sidebar
-            activeTab={activeSidebarTab}
-            setActiveTab={setActiveSidebarTab}
-            toggleTheme={toggleTheme}
-            theme={theme}
-          />
-
+          <Sidebar activeTab={activeSidebarTab} setActiveTab={setActiveSidebarTab} toggleTheme={toggleTheme} theme={theme} />
           {activeSidebarTab === 'chats' && (
-            <ChatList
-              activeChatId={selectedChat?.id || null}
-              onSelectChat={handleSelectChat}
-              onNewChat={() => setIsNewChatModalOpen(true)}
-              isMobileListVisible={mobileView === "list"}
-            />
+            <ChatList activeChatId={selectedChat?.id || null} onSelectChat={handleSelectChat} onNewChat={() => setIsNewChatModalOpen(true)} isMobileListVisible={mobileView === "list"} />
           )}
-
           {activeSidebarTab === 'hollers' && <HollersTab />}
-          {activeSidebarTab === 'status' && (
-            <ContactList
-              activeChatId={selectedChat?.id}
-              onSelectChat={handleSelectChat}
-            />
-          )}
+          {activeSidebarTab === 'status' && <ContactList activeChatId={selectedChat?.id} onSelectChat={handleSelectChat} />}
           {activeSidebarTab === 'calls' && <CallsTab />}
-          {activeSidebarTab === 'groups' && (
-            <GroupsTab
-              onOpenCreateModal={() => setIsCreateGroupOpen(true)}
-              activeGroupId={selectedChat?.id}
-              onSelectGroup={handleSelectChat}
-            />
-          )}
+          {activeSidebarTab === 'groups' && <GroupsTab onOpenCreateModal={() => setIsCreateGroupOpen(true)} activeGroupId={selectedChat?.id} onSelectGroup={handleSelectChat} />}
           {activeSidebarTab === 'profile' && <ProfileTab />}
-
-          <ChatWindow
-            chat={selectedChat}
-            onBack={handleBackToList}
-            isMobileWindowVisible={mobileView === "chat"}
-            onStartCall={handleStartCall}
-            onShowInfo={handleShowInfo}
-          />
-
-          <CreateGroupModal
-            isOpen={isCreateGroupOpen}
-            onClose={() => setIsCreateGroupOpen(false)}
-          />
-
-          <NewChatModal
-            isOpen={isNewChatModalOpen}
-            onClose={() => setIsNewChatModalOpen(false)}
-            onSelectUser={handleStartChatWithUser}
-          />
-
-          <div className={clsx(
-            styles.rightPanelWrapper,
-            mobileView === 'info' && styles.rightPanelMobileActive
-          )}>
+          <ChatWindow chat={selectedChat} onBack={handleBackToList} isMobileWindowVisible={mobileView === "chat"} onStartCall={handleStartCall} onShowInfo={handleShowInfo} />
+          <CreateGroupModal isOpen={isCreateGroupOpen} onClose={() => setIsCreateGroupOpen(false)} />
+          <NewChatModal isOpen={isNewChatModalOpen} onClose={() => setIsNewChatModalOpen(false)} onSelectUser={handleStartChatWithUser} />
+          <div className={clsx(styles.rightPanelWrapper, mobileView === 'info' && styles.rightPanelMobileActive)}>
             <RightPanel
               chat={selectedChat}
-              onClose={() => {
-                setIsRightPanelOpen(false);
-                if (mobileView === 'info') setMobileView('chat');
-              }}
-              isVisible={
-                (!!selectedChat && isRightPanelOpen) ||
-                mobileView === 'info'
-              }
+              onClose={() => { setIsRightPanelOpen(false); if (mobileView === 'info') setMobileView('chat'); }}
+              isVisible={(!!selectedChat && isRightPanelOpen) || mobileView === 'info'}
               onStartCall={handleStartCall}
               onBack={handleBackFromInfo}
               isMobile={mobileView === 'info'}
@@ -277,11 +211,7 @@ function MainContent() {
         </div>
       </div>
 
-      <IncomingCallModal
-        incomingCall={incomingCall}
-        onAccept={acceptCall}
-        onReject={rejectCall}
-      />
+      <IncomingCallModal incomingCall={incomingCall} onAccept={acceptCall} onReject={rejectCall} />
 
       <ActiveCallUI
         callState={callState}
@@ -292,10 +222,11 @@ function MainContent() {
         error={callError}
         onEndCall={endCall}
         onToggleMute={toggleMute}
+        audioBlocked={audioBlocked}
+        onUnmuteAudio={handleUnmuteAudio}
       />
 
-      {/* Hidden audio element for remote stream - must NOT have autoPlay attr,
-          we call .play() manually to handle mobile autoplay restrictions */}
+      {/* No autoPlay attr — .play() is called manually to handle Chrome's autoplay policy */}
       <audio ref={remoteAudioRef} playsInline style={{ display: 'none' }} />
     </>
   );

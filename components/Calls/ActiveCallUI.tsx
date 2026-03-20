@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CallUI.module.css';
 import clsx from 'clsx';
@@ -17,6 +17,8 @@ interface ActiveCallUIProps {
   error: string | null;
   onEndCall: () => void;
   onToggleMute: () => void;
+  audioBlocked?: boolean;
+  onUnmuteAudio?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -34,9 +36,10 @@ export default function ActiveCallUI({
   error,
   onEndCall,
   onToggleMute,
+  audioBlocked = false,
+  onUnmuteAudio,
 }: ActiveCallUIProps) {
-  // FIXED: exclude 'ringing' — that state is for the IncomingCallModal on the receiver side
-  // Only the CALLER sees this UI during 'calling', 'connecting', 'connected', 'ended'
+  // Exclude 'ringing' — that state belongs to IncomingCallModal on the receiver side
   const isVisible = ['calling', 'connecting', 'connected', 'ended'].includes(callState);
 
   const avatarUrl = callerAvatar
@@ -52,7 +55,6 @@ export default function ActiveCallUI({
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
   if (!mounted) return null;
 
   return createPortal(
@@ -78,11 +80,7 @@ export default function ActiveCallUI({
                   <div className={styles.avatarPulseOuter} />
                 </>
               )}
-              <img
-                src={avatarUrl}
-                alt={callerName}
-                className={styles.avatar}
-              />
+              <img src={avatarUrl} alt={callerName} className={styles.avatar} />
             </div>
 
             <h2 className={styles.callerName}>{callerName}</h2>
@@ -97,14 +95,37 @@ export default function ActiveCallUI({
               <p className={styles.callTimer}>{formatDuration(callDuration)}</p>
             )}
 
+            {/* Audio blocked banner — shows when Chrome silently blocks autoplay */}
+            {audioBlocked && callState === 'connected' && (
+              <motion.button
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={onUnmuteAudio}
+                className={clsx(styles.unmuteAudioBtn)}
+                style={{
+                  marginBottom: '12px',
+                  padding: '8px 18px',
+                  borderRadius: '999px',
+                  background: '#f59e0b',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <VolumeX size={16} />
+                Tap to hear audio
+              </motion.button>
+            )}
+
             <div className={styles.connectedActions}>
               <button
                 onClick={onToggleMute}
-                className={clsx(
-                  styles.actionBtn,
-                  styles.btnMd,
-                  isMuted ? styles.btnMuted : styles.btnMute
-                )}
+                className={clsx(styles.actionBtn, styles.btnMd, isMuted ? styles.btnMuted : styles.btnMute)}
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
