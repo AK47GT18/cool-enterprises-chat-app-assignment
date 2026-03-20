@@ -133,17 +133,17 @@ export default function GroupsTab({ onOpenCreateModal, activeGroupId, onSelectGr
 
       {/* Join Group Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowJoinModal(false)}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4" onClick={() => setShowJoinModal(false)}>
           <div 
-            className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl space-y-6"
+            className="bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-sm shadow-2xl space-y-6 border border-slate-200 dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 bg-blue-50 rounded-2xl flex items-center justify-center">
-                <Key size={28} className="text-blue-500" />
+              <div className="w-14 h-14 mx-auto mb-4 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
+                <Key size={28} className="text-blue-500 dark:text-blue-400" />
               </div>
-              <h3 className="text-xl font-black text-[#111827]">Join a Private Group</h3>
-              <p className="text-sm text-slate-500 mt-1">Enter the invite code shared by the group admin</p>
+              <h3 className="text-xl font-black text-[#111827] dark:text-white">Join a Community</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Enter the invite code shared by the group admin</p>
             </div>
 
             <input
@@ -151,7 +151,7 @@ export default function GroupsTab({ onOpenCreateModal, activeGroupId, onSelectGr
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               placeholder="Paste invite code..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold outline-none focus:border-blue-500 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold outline-none focus:border-blue-500 dark:text-white transition-colors"
               onKeyDown={(e) => e.key === 'Enter' && handleJoinGroup()}
             />
 
@@ -162,7 +162,7 @@ export default function GroupsTab({ onOpenCreateModal, activeGroupId, onSelectGr
             <div className="flex gap-3">
               <button 
                 onClick={() => setShowJoinModal(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm"
+                className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>

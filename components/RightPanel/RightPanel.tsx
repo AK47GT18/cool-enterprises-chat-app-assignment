@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './RightPanel.module.css';
-import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key, MessageSquare, Phone, Video } from 'lucide-react';
+import { ChevronRight, FileText, FolderArchive, X, Edit2, Check, Users, Shield, MoreHorizontal, UserMinus, ShieldAlert, ShieldCheck, Globe, Copy, Key, MessageSquare, Phone } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
@@ -10,11 +10,10 @@ interface RightPanelProps {
   chat: { id: string; name: string; avatar: string; description?: string; isGroup?: boolean } | null;
   onClose: () => void;
   isVisible: boolean;
-  onStartCall?: (callType: 'audio' | 'video') => void;
+  onStartCall?: (callType: 'audio') => void;
 }
 
 import { LocalRealtimeService } from '@/services/local-realtime.service';
-import { decryptMessage } from '@/lib/encryption';
 
 export default function RightPanel({ chat, onClose, isVisible, onStartCall }: RightPanelProps) {
   const { currentUser } = useChatStore();

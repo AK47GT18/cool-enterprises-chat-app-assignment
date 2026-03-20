@@ -1,8 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-secret-for-dev-only-123'
-);
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is missing. Authentication cannot proceed.");
+}
+const secret = new TextEncoder().encode(JWT_SECRET);
 
 export async function signJWT(payload: any) {
   return await new SignJWT(payload)

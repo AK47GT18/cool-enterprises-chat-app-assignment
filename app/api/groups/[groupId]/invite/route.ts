@@ -41,6 +41,20 @@ export async function POST(
       return NextResponse.json({ error: 'User is already in the group' }, { status: 400 });
     }
 
+    // Check if they are friends
+    const isFriend = await prisma.contactRequest.findFirst({
+      where: {
+        OR: [
+          { senderId: user.id, receiverId: userToInvite.id, status: 'ACCEPTED' },
+          { senderId: userToInvite.id, receiverId: user.id, status: 'ACCEPTED' }
+        ]
+      }
+    });
+
+    if (!isFriend) {
+      return NextResponse.json({ error: 'You can only invite your friends to groups' }, { status: 403 });
+    }
+
     await prisma.userConversation.create({
       data: {
         userId: userToInvite.id,

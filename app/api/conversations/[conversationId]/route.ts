@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SessionService } from '@/services/session.service';
+import { decryptMessage } from '@/lib/encryption';
 
 export async function GET(
   req: Request,
@@ -54,7 +55,15 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    return NextResponse.json(conversation);
+    const decryptedConversation = {
+      ...conversation,
+      messages: conversation.messages.map(msg => ({
+        ...msg,
+        body: msg.body ? decryptMessage(msg.body) : msg.body
+      }))
+    };
+
+    return NextResponse.json(decryptedConversation);
   } catch (err) {
     console.error("[CONVERSATION_GET]", err);
     return new NextResponse("Internal Error", { status: 500 });

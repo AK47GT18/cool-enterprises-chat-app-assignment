@@ -1,9 +1,9 @@
 import CryptoJS from 'crypto-js';
 
-const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_MESSAGE_ENCRYPTION_KEY!;
+const ENCRYPTION_KEY = process.env.MESSAGE_ENCRYPTION_KEY!;
 
 if (!ENCRYPTION_KEY) {
-  throw new Error('NEXT_PUBLIC_MESSAGE_ENCRYPTION_KEY environment variable is required for secure encryption');
+  throw new Error('MESSAGE_ENCRYPTION_KEY environment variable is missing.');
 }
 
 /**
@@ -28,20 +28,8 @@ export function decryptMessage(ciphertext: string): string {
   try {
     const bytes = CryptoJS.AES.decrypt(ciphertext, ENCRYPTION_KEY);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-    if (decrypted) return decrypted;
+    return decrypted || ciphertext;
   } catch (error) {
-    // Ignore first pass failure
+    return ciphertext;
   }
-
-  // Fallback to legacy key to support older messages
-  try {
-    const LEGACY_KEY = 'default-chat-key-321-secure';
-    const legacyBytes = CryptoJS.AES.decrypt(ciphertext, LEGACY_KEY);
-    const legacyDecrypted = legacyBytes.toString(CryptoJS.enc.Utf8);
-    if (legacyDecrypted) return legacyDecrypted;
-  } catch (fallbackError) {
-    // Ignore legacy pass failure
-  }
-
-  return ciphertext;
 }

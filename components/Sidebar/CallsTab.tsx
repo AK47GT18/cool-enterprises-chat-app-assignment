@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Video } from 'lucide-react';
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed } from 'lucide-react';
 import styles from './SidebarTab.module.css';
 import { useChatStore } from '@/hooks/useChatStore';
 import clsx from 'clsx';
@@ -32,7 +32,7 @@ export default function CallsTab() {
               <Phone size={64} className={styles.emptyIcon} />
             </div>
             <h3 className={styles.emptyTitle}>No recent calls</h3>
-            <p className={styles.emptySubtitle}>Your voice and video calls will appear here once you start reaching out.</p>
+            <p className={styles.emptySubtitle}>Your voice calls will appear here once you start reaching out.</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -58,7 +58,7 @@ export default function CallsTab() {
                   <div className="flex flex-col">
                     <div className={styles.username}>{log.name}</div>
                     <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                      <span>{log.callType === 'video' ? 'Video' : 'Voice'}</span>
+                      <span>Voice</span>
                       <span>•</span>
                       <span>{formatDate(log.timestamp)}, {formatTime(log.timestamp)}</span>
                     </div>
@@ -66,7 +66,7 @@ export default function CallsTab() {
                 </div>
                 <div className="flex items-center gap-2">
                    <button className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-full transition-colors opacity-0 group-hover:opacity-100">
-                     {log.callType === 'video' ? <Video size={18} /> : <Phone size={18} />}
+                     <Phone size={18} />
                    </button>
                 </div>
               </div>

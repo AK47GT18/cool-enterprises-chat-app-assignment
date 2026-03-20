@@ -7,13 +7,12 @@ import { format } from 'date-fns';
 
 import { useChatStore } from '@/hooks/useChatStore';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
-import { decryptMessage } from '@/lib/encryption';
 
 interface ChatWindowProps {
   chat: { id: string; name: string; avatar: string; imageUrl?: string; online?: boolean; isGroup?: boolean } | null;
   onBack: () => void;
   isMobileWindowVisible: boolean;
-  onStartCall?: (callType: 'audio' | 'video') => void;
+  onStartCall?: (callType: 'audio') => void;
 }
 
 export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStartCall }: ChatWindowProps) {
@@ -193,17 +192,13 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
           setMessages((current) => {
             if (current.some(m => m.id === data.id)) return current;
             
-            // Decrypt the body
-            const decryptedBody = data.body ? decryptMessage(data.body) : data.body;
-            
-            // Decrypt replyTo body if it exists
-            const replyTo = data.replyTo ? {
-              ...data.replyTo,
-              body: data.replyTo.body ? decryptMessage(data.replyTo.body) : data.replyTo.body
-            } : null;
+            // No decryption needed here (server handles it)
+            const decryptedBody = data.body;
             
             // Resolve sender info
             let sender = data.sender;
+            const replyTo = data.replyTo;
+            
             if (!sender) {
               if (data.senderId === currentUser?.id) {
                 sender = { username: currentUser.username || 'You', image: currentUser.image };
@@ -526,7 +521,6 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
         <div className={styles.headerRight}>
           <button onClick={() => setIsSearching(!isSearching)} className={styles.iconBtn}><Search size={20} /></button>
           <button onClick={() => onStartCall?.('audio')} className={styles.iconBtn}><Phone size={20} /></button>
-          <button onClick={() => onStartCall?.('video')} className={styles.iconBtn}><Video size={20} /></button>
           <div className="relative group">
             <button 
               onClick={() => {

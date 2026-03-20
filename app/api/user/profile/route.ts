@@ -34,8 +34,6 @@ export async function PATCH(req: Request) {
     if (error) return error;
 
     const body = await req.json();
-    console.log("[USER_PROFILE_PATCH] User ID:", user.id);
-    console.log("[USER_PROFILE_PATCH] Body:", body);
     const { username, image, bio, isPrivate } = body;
 
     const updatedUser = await prisma.user.update({
@@ -69,8 +67,7 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json({ 
-      error: "Internal Error",
-      details: err.message
+      error: "Internal Error"
     }, { status: 500 });
   }
 }

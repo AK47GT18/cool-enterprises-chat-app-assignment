@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-secret-for-dev-only-123'
-);
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is missing. Middleware cannot proceed.");
+}
+const secret = new TextEncoder().encode(JWT_SECRET);
 
 export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get('session')?.value;

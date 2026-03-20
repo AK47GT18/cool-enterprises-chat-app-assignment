@@ -102,7 +102,7 @@ export default function IncomingCallModal({ incomingCall, onAccept, onReject }: 
 
             <h2 className={styles.callerName}>{incomingCall.callerName}</h2>
             <p className={styles.callStatus}>
-              Incoming {incomingCall.callType === 'video' ? 'Video' : 'Voice'} Call...
+              Incoming Voice Call...
             </p>
 
             <div className={styles.actions}>

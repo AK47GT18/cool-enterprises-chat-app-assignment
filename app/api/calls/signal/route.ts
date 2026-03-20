@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { realtimeBus } from '@/lib/realtime-bus';
 import { REALTIME_EVENTS } from '@/lib/realtime-constants';
+import { SessionService } from '@/services/session.service';
 
 export async function POST(req: NextRequest) {
   try {
+    const { user, error: authError } = await SessionService.requireAuth();
+    if (authError) return authError;
+
     const { event, data } = await req.json();
 
     if (!Object.values(REALTIME_EVENTS).includes(event)) {
