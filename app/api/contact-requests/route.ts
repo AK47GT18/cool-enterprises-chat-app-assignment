@@ -128,3 +128,33 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { user, error } = await SessionService.requireAuth();
+    if (error) return error;
+
+    const { receiverId } = await req.json();
+
+    const request = await prisma.contactRequest.findFirst({
+      where: {
+        senderId: user.id,
+        receiverId: receiverId,
+        status: 'PENDING'
+      }
+    });
+
+    if (!request) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    await prisma.contactRequest.delete({
+      where: { id: request.id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[CONTACT_REQUESTS_DELETE]", error);
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  }
+}

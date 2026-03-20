@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Users, Shield, Globe, Loader2, ArrowRight, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -91,13 +92,16 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm sm:p-6 p-0">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 1, y: '100%' }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="relative bg-white border border-[#E2E8F0] rounded-[24px] p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] w-full max-w-xl overflow-y-auto max-h-[90vh]"
+            exit={{ opacity: 0, scale: 1, y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={clsx(
+              "relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 md:p-10 shadow-2xl w-full",
+              "sm:rounded-[24px] rounded-t-[24px] sm:max-w-xl sm:h-auto h-[92vh] sm:max-h-[90vh] overflow-y-auto mt-auto sm:mt-0"
+            )}
           >
             {/* Subtle Top Accent */}
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-[#2C6BED] to-transparent opacity-40" />

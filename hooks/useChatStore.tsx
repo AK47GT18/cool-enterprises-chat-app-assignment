@@ -160,6 +160,16 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
               replyTo: data.replyTo
             }];
             
+            if (currentUser && data.senderId !== currentUser.id && chat.members) {
+              const myMemberIndex = chat.members.findIndex((m: any) => m.userId === currentUser.id);
+              if (myMemberIndex !== -1) {
+                // Ensure we create a new members array to trigger re-renders
+                const newMembers = [...chat.members];
+                newMembers[myMemberIndex] = { ...newMembers[myMemberIndex], hasSeenLatest: false };
+                chat.members = newMembers;
+              }
+            }
+            
             updated[index] = chat;
             // Move to top
             const [moved] = updated.splice(index, 1);
@@ -228,6 +238,34 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
               });
             });
           }
+          break;
+        }
+        case 'user:update': {
+          setConversations(current => {
+            return current.map(c => {
+              const updatedMembers = c.members?.map((m: any) => {
+                if (m.userId === data.id) {
+                  return {
+                    ...m,
+                    user: { ...m.user, username: data.username, image: data.image }
+                  };
+                }
+                return m;
+              });
+
+              let chatName = c.name;
+              let chatImageUrl = c.imageUrl;
+              if (!c.isGroup) {
+                const otherMember = updatedMembers?.find((m: any) => m.userId !== currentUser?.id);
+                if (otherMember && otherMember.userId === data.id) {
+                  chatName = data.username;
+                  chatImageUrl = data.image;
+                }
+              }
+
+              return { ...c, members: updatedMembers, name: chatName, imageUrl: chatImageUrl };
+            });
+          });
           break;
         }
       }

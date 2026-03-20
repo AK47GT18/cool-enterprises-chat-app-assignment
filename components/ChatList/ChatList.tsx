@@ -55,8 +55,6 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
         <div className={styles.titleRow}>
           <h2>Cool Chat</h2>
           <div className={styles.actions}>
-            <button className={styles.iconBtn} aria-label="Camera"><Camera size={22} /></button>
-            <button className={styles.iconBtn} aria-label="Search"><Search size={22} /></button>
             <button className={styles.iconBtn} aria-label="More options"><MoreVertical size={22} /></button>
           </div>
         </div>
@@ -88,7 +86,18 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
           <>
             {/* Filtered local conversations */}
             {conversations
-              .filter(c => !searchQuery || c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(c => {
+                if (searchQuery) return c.name?.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                // Only show if:
+                // 1. It has messages
+                // 2. Or it's a designated group
+                // 3. And it's NOT an unnamed group with no messages (noise)
+                const hasMessages = c.messages && c.messages.length > 0;
+                if (!hasMessages && c.isGroup && !c.name) return false;
+                
+                return true; // Keep others for now to satisfy "groups/friends user is part of"
+              })
               .map(chat => {
                 const lastMessage = chat.messages?.[0];
                 const myMember = chat.members?.find((m: any) => m.userId === currentUser?.id);
@@ -119,14 +128,14 @@ export default function ChatList({ activeChatId, onSelectChat, onNewChat, isMobi
                     
                     <div className={styles.chatInfo}>
                       <div className={styles.chatTopLine}>
-                        <span className={styles.name}>{chat.name || 'Unnamed Group'}</span>
+                        <span className={styles.name}>{chat.name || 'Group Chat'}</span>
                         <span className={styles.time}>
-                          {mounted && lastMessage ? format(new Date(lastMessage.createdAt), 'HH:mm') : '--:--'}
+                          {mounted && lastMessage ? format(new Date(lastMessage.createdAt), 'HH:mm') : ''}
                         </span>
                       </div>
                       <div className={styles.chatBottomLine}>
                         <span className={styles.lastMessage}>
-                          {lastMessage ? lastMessage.body : 'No messages yet'}
+                          {lastMessage ? lastMessage.body : <span className="italic text-slate-400">Say hi!</span>}
                         </span>
                         {unreadCount > 0 && (
                           <span className={styles.unreadBadge}>{unreadCount}</span>

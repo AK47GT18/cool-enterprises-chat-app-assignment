@@ -66,6 +66,26 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
         console.error("Failed to send holler:", errorData.error);
         return;
       }
+      setResults(prev => prev.map(u => 
+        u.id === userId ? { ...u, hollerStatus: 'PENDING' } : u
+      ));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCancelHoller = async (userId: string) => {
+    try {
+      const response = await fetch('/api/contact-requests', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId: userId })
+      });
+      if (!response.ok) return;
+      
+      setResults(prev => prev.map(u => 
+        u.id === userId ? { ...u, hollerStatus: null } : u
+      ));
     } catch (err) {
       console.error(err);
     }
@@ -161,7 +181,7 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
         </div>
       </div>
 
-      <div className={styles.list}>
+      <div className={clsx(styles.list, "no-scrollbar")}>
          {isSearching && <p className={styles.statusMsg}>Searching for matches...</p>}
          
          {!isSearching && searchQuery.length >= 2 && results.length === 0 && filter !== 'blocked' && (
@@ -276,14 +296,20 @@ export default function ContactList({ activeChatId, onSelectChat }: ContactListP
                         <div className={styles.username}>@{user.username}</div>
                       </div>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleHoller(user.id); }}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if (user.hollerStatus === 'PENDING') {
+                            handleCancelHoller(user.id);
+                          } else {
+                            handleHoller(user.id); 
+                          }
+                        }}
                         className={clsx(
                           styles.hollerBtn,
-                          user.hollerStatus === 'PENDING' && "opacity-50 pointer-events-none"
+                          user.hollerStatus === 'PENDING' && "bg-red-500 hover:bg-red-600 border-red-500 text-white"
                         )}
-                        disabled={user.hollerStatus === 'PENDING'}
                       >
-                        {user.hollerStatus === 'PENDING' ? 'Requested' : 'Holler'}
+                        {user.hollerStatus === 'PENDING' ? 'Cancel Request' : 'Holler'}
                       </button>
                    </div>
                  ))}

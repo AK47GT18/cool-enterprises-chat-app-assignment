@@ -27,6 +27,7 @@
 /* Header */
 .header {
   height: 70px;
+  flex-shrink: 0;
   padding: 0 20px;
   background-color: var(--bg-panel);
   display: flex;
@@ -417,7 +418,7 @@
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
     z-index: 20;
     transform: translateX(100%);
     opacity: 0;
