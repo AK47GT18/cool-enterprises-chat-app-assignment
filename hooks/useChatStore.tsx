@@ -101,7 +101,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch('/api/conversations');
       // Check for unauthorized and redirect to login
-      if (await handleAuthRedirect(response)) return;
+      if (handleAuthRedirect(response)) return;
 
       if (response.ok) {
         const data = await response.json();
@@ -118,7 +118,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch('/api/contact-requests');
       // Check for unauthorized and redirect to login
-      if (await handleAuthRedirect(response)) return;
+      if (handleAuthRedirect(response)) return;
 
       if (response.ok) {
         const data = await response.json();
@@ -332,9 +332,9 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     fetchedRef.current = true;
 
     fetch('/api/user/profile')
-      .then(async (res) => {
+      .then((res) => {
         // Check for unauthorized and redirect to login
-        if (await handleAuthRedirect(res)) {
+        if (handleAuthRedirect(res)) {
           return null;
         }
         return res.ok ? res.json() : null;
