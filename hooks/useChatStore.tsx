@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { LocalRealtimeService } from '@/services/local-realtime.service';
+import { handleAuthRedirect } from '@/lib/auth-handler';
 
 export interface CallLog {
   id: string;
@@ -38,10 +39,10 @@ const ChatStoreContext = createContext<ChatStore>({
   pendingHollers: [],
   callsCount: 0,
   callLogs: [],
-  refreshConversations: async () => {},
-  refreshPendingHollers: async () => {},
-  markAsSeen: () => {},
-  addCallLog: () => {},
+  refreshConversations: async () => { },
+  refreshPendingHollers: async () => { },
+  markAsSeen: () => { },
+  addCallLog: () => { },
 });
 
 export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
@@ -99,6 +100,9 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const fetchConversations = useCallback(async () => {
     try {
       const response = await fetch('/api/conversations');
+      // Check for unauthorized and redirect to login
+      if (await handleAuthRedirect(response)) return;
+
       if (response.ok) {
         const data = await response.json();
         setConversations(data);
@@ -113,6 +117,9 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   const fetchPendingHollers = useCallback(async () => {
     try {
       const response = await fetch('/api/contact-requests');
+      // Check for unauthorized and redirect to login
+      if (await handleAuthRedirect(response)) return;
+
       if (response.ok) {
         const data = await response.json();
         setPendingHollers(data);
@@ -124,27 +131,27 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const [presence, setPresence] = useState<Record<string, any>>({});
-  
+
   // Example: Listen for missed calls or incoming signals to increment callsCount
   // For now, we'll keep it as a placeholder that can be updated by services
 
   useEffect(() => {
     if (!currentUser) return;
-    
+
     // Subscribe to local SSE realtime
     const subscription = LocalRealtimeService.subscribe((eventName, data) => {
-      switch(eventName) {
+      switch (eventName) {
         case 'message:new': {
           setConversations(current => {
             const index = current.findIndex(c => c.id === data.conversationId);
             if (index === -1) {
-                const now = Date.now();
-                const lastFetch = (window as any)._lastConvoFetch || 0;
-                if (now - lastFetch > 2000) {
-                   (window as any)._lastConvoFetch = now;
-                   fetchConversations();
-                }
-                return current;
+              const now = Date.now();
+              const lastFetch = (window as any)._lastConvoFetch || 0;
+              if (now - lastFetch > 2000) {
+                (window as any)._lastConvoFetch = now;
+                fetchConversations();
+              }
+              return current;
             }
 
             // Clear typing status for this user when message arrives
@@ -158,7 +165,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
 
             const updated = [...current];
             const chat = { ...updated[index] };
-            
+
             // Resolve sender
             let sender = data.sender;
             if (!sender) {
@@ -169,12 +176,12 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            chat.messages = [{ 
-              ...data, 
+            chat.messages = [{
+              ...data,
               sender,
               replyTo: data.replyTo
             }];
-            
+
             if (currentUser && data.senderId !== currentUser.id && chat.members) {
               const myMemberIndex = chat.members.findIndex((m: any) => m.userId === currentUser.id);
               if (myMemberIndex !== -1) {
@@ -184,7 +191,7 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
                 chat.members = newMembers;
               }
             }
-            
+
             updated[index] = chat;
             // Move to top
             const [moved] = updated.splice(index, 1);
@@ -323,9 +330,15 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    
+
     fetch('/api/user/profile')
-      .then(res => res.ok ? res.json() : null)
+      .then(async (res) => {
+        // Check for unauthorized and redirect to login
+        if (await handleAuthRedirect(res)) {
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then(user => {
         if (user) setCurrentUser(user);
       });
@@ -341,11 +354,11 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
     }).length;
   }, [conversations, currentUser?.id]);
 
-  const value = React.useMemo(() => ({ 
-    conversations, 
-    currentUser, 
-    presence, 
-    loading, 
+  const value = React.useMemo(() => ({
+    conversations,
+    currentUser,
+    presence,
+    loading,
     totalUnreadCount,
     pendingHollersCount,
     pendingHollers,
