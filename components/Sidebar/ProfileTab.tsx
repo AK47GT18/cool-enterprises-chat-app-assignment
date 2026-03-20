@@ -216,13 +216,13 @@ export default function ProfileTab() {
               <input
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center font-bold outline-none"
+                className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border-2 border-blue-500 text-center font-bold outline-none text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 transition-colors"
                 placeholder="Username"
               />
               <textarea
                 value={editedBio}
                 onChange={(e) => setEditedBio(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl bg-slate-50 border-2 border-blue-500 text-center outline-none resize-none min-h-[80px] text-sm"
+                className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border-2 border-blue-500 text-center outline-none resize-none min-h-[80px] text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 transition-colors"
                 placeholder="Brief bio..."
                />
               {error && (
@@ -241,7 +241,7 @@ export default function ProfileTab() {
                 <button
                   type="button"
                   onClick={() => setIsChangingPassword(!isChangingPassword)}
-                  className="w-full py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors"
+                  className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   {isChangingPassword ? "Cancel Password Change" : "Change Password"}
                 </button>
@@ -252,7 +252,7 @@ export default function ProfileTab() {
                       <input
                         type="password"
                         placeholder="Current Password"
-                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.current ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border text-sm outline-none text-slate-900 dark:text-white transition-all ${passValidationErrors.current ? 'border-red-300' : 'border-slate-200 dark:border-slate-700 focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800'}`}
                         value={passwords.current}
                         onChange={(e) => {
                           setPasswords({ ...passwords, current: e.target.value });
@@ -266,7 +266,7 @@ export default function ProfileTab() {
                       <input
                         type="password"
                         placeholder="New Password"
-                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.new ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border text-sm outline-none text-slate-900 dark:text-white transition-all ${passValidationErrors.new ? 'border-red-300' : 'border-slate-200 dark:border-slate-700 focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800'}`}
                         value={passwords.new}
                         onChange={(e) => {
                           setPasswords({ ...passwords, new: e.target.value });
@@ -280,7 +280,7 @@ export default function ProfileTab() {
                       <input
                         type="password"
                         placeholder="Confirm New Password"
-                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-sm outline-none ${passValidationErrors.confirm ? 'border-red-300' : 'border-slate-200 focus:border-blue-400'}`}
+                        className={`w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border text-sm outline-none text-slate-900 dark:text-white transition-all ${passValidationErrors.confirm ? 'border-red-300' : 'border-slate-200 dark:border-slate-700 focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800'}`}
                         value={passwords.confirm}
                         onChange={(e) => {
                           setPasswords({ ...passwords, confirm: e.target.value });
@@ -294,7 +294,7 @@ export default function ProfileTab() {
                       type="button"
                       onClick={handleChangePassword}
                       disabled={saving}
-                      className="w-full py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-black transition-colors"
+                      className="w-full py-2 rounded-xl bg-slate-800 dark:bg-blue-600 text-white text-xs font-bold hover:bg-black dark:hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/10"
                     >
                       {saving ? "Updating..." : "Update Password"}
                     </button>
@@ -305,7 +305,7 @@ export default function ProfileTab() {
                 type="button" 
                 onClick={() => setEditedIsPrivate(!editedIsPrivate)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  editedIsPrivate ? "bg-slate-50 border-slate-200" : "bg-blue-50 border-blue-200"
+                  editedIsPrivate ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700" : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -320,21 +320,21 @@ export default function ProfileTab() {
                 <button onClick={handleSave} disabled={saving} className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-bold text-sm flex items-center justify-center gap-2">
                   <Save size={14} /> {saving ? 'Saving...' : 'Save'}
                 </button>
-                <button onClick={() => setIsEditing(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm">
+                <button onClick={() => setIsEditing(false)} className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
             <div className="mt-4 text-center">
-              <h3 className="text-xl font-black text-[#111827]">{profile?.username || 'Username Not Set'}</h3>
-              <p className={clsx("text-sm mt-2 px-6 max-w-sm line-clamp-3", !profile?.bio ? "text-slate-400 italic" : "text-slate-600")}>
+              <h3 className="text-xl font-black text-[#111827] dark:text-white">{profile?.username || 'Username Not Set'}</h3>
+              <p className={clsx("text-sm mt-2 px-6 max-w-sm line-clamp-3", !profile?.bio ? "text-slate-400 italic" : "text-slate-600 dark:text-slate-300")}>
                 {profile?.bio || 'Click edit to add a bio about yourself!'}
               </p>
               <p className="text-xs text-slate-400 mt-2">{profile?.email}</p>
               <button
                 onClick={() => setIsEditing(true)}
-                className="mt-3 px-6 py-2 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"
+                className="mt-3 px-6 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
               >
                 Edit Profile
               </button>
@@ -344,23 +344,23 @@ export default function ProfileTab() {
 
         {/* Info Cards */}
         <div className="space-y-3">
-          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+          <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
               <Mail size={18} />
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email</p>
-              <p className="text-sm font-bold text-[#111827]">{profile?.email}</p>
+              <p className="text-sm font-bold text-[#111827] dark:text-white">{profile?.email}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-            <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+          <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl">
               <UserIcon size={18} />
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Username</p>
-              <p className="text-sm font-bold text-[#111827]">@{profile?.username}</p>
+              <p className="text-sm font-bold text-[#111827] dark:text-white">@{profile?.username}</p>
             </div>
           </div>
         </div>
@@ -373,14 +373,14 @@ export default function ProfileTab() {
               <p className="text-xs text-slate-400 italic">No public communities joined yet.</p>
             ) : (
               publicGroups.map((group: any) => (
-                <div key={group.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                <div key={group.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
                   <img
                     src={group.imageUrl || `https://ui-avatars.com/api/?name=${group.name}&background=random`}
                     alt={group.name}
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-[#111827] truncate">{group.name}</p>
+                    <p className="text-sm font-bold text-[#111827] dark:text-white truncate">{group.name}</p>
                     <p className="text-[10px] text-slate-400">{group.members?.length || 0} members</p>
                   </div>
                   <Globe size={14} className="text-green-500" />
@@ -393,7 +393,7 @@ export default function ProfileTab() {
         {/* Logout */}
         <button
           onClick={handleLogout}
-          className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+          className="w-full py-3 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
         >
           <LogOut size={16} /> Sign Out
         </button>

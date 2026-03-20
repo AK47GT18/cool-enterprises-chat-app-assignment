@@ -171,6 +171,7 @@ function MainContent() {
           activeTab={activeSidebarTab} 
           setActiveTab={setActiveSidebarTab} 
           toggleTheme={toggleTheme} 
+          theme={theme}
         />
 
         {activeSidebarTab === 'chats' && (

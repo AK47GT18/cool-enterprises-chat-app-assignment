@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './Sidebar.module.css';
-import { MessageSquare, Users, Phone, Settings, CircleDashed, User } from 'lucide-react';
+import { MessageSquare, Users, Phone, Sun, Moon, CircleDashed, User } from 'lucide-react';
 import clsx from 'clsx';
 import { useChatStore } from '@/hooks/useChatStore';
 
@@ -8,9 +8,10 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   toggleTheme: () => void;
+  theme: 'light' | 'dark';
 }
 
-export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, toggleTheme, theme }: SidebarProps) {
   const { currentUser, pendingHollersCount, callsCount, conversations } = useChatStore();
 
   const chatsUnreadCount = React.useMemo(() => {
@@ -100,8 +101,8 @@ export default function Sidebar({ activeTab, setActiveTab, toggleTheme }: Sideba
       </nav>
 
       <div className={styles.bottomNav}>
-        <button className={styles.navItem} onClick={toggleTheme} aria-label="Settings">
-          <Settings size={24} />
+        <button className={styles.navItem} onClick={toggleTheme} aria-label="Toggle Theme">
+          {theme === 'light' ? <Moon size={24} /> : <Sun size={24} />}
         </button>
         <img
           src={currentUser?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${currentUser?.email || 'U'}&background=random`}
