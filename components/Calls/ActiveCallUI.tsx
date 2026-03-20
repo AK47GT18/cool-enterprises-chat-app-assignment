@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,15 +35,16 @@ export default function ActiveCallUI({
   onEndCall,
   onToggleMute,
 }: ActiveCallUIProps) {
-  // Show UI for all active stages
-  const isVisible = ['calling', 'ringing', 'connecting', 'connected', 'ended'].includes(callState);
+  // FIXED: exclude 'ringing' — that state is for the IncomingCallModal on the receiver side
+  // Only the CALLER sees this UI during 'calling', 'connecting', 'connected', 'ended'
+  const isVisible = ['calling', 'connecting', 'connected', 'ended'].includes(callState);
 
   const avatarUrl = callerAvatar
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerName || 'U')}&background=random&size=256`;
 
   const statusText = callState === 'calling'
     ? 'Calling...'
-    : (callState === 'connecting' || callState === 'ringing')
+    : callState === 'connecting'
       ? 'Connecting...'
       : callState === 'connected'
         ? 'Connected'

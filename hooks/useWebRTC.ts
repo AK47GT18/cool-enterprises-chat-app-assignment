@@ -31,7 +31,6 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // TURN servers for mobile NAT traversal
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
@@ -79,7 +78,6 @@ export const useWebRTC = (): UseWebRTCReturn => {
   const pendingAcceptRef = useRef(false);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Wrapper for setCallState that keeps the ref in sync
   const setCallStateWithRef = useCallback((newState: CallState) => {
     console.log('[WebRTC] State transition:', callStateRef.current, '->', newState);
     callStateRef.current = newState;
@@ -87,18 +85,9 @@ export const useWebRTC = (): UseWebRTCReturn => {
   }, []);
 
   const cleanup = useCallback(() => {
-    if (callTimeoutRef.current) {
-      clearTimeout(callTimeoutRef.current);
-      callTimeoutRef.current = null;
-    }
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
-      durationIntervalRef.current = null;
-    }
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
+    if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+    if (durationIntervalRef.current) { clearInterval(durationIntervalRef.current); durationIntervalRef.current = null; }
+    if (fallbackTimerRef.current) { clearTimeout(fallbackTimerRef.current); fallbackTimerRef.current = null; }
 
     localStream?.getTracks().forEach((track) => track.stop());
     setLocalStream(null);
@@ -119,6 +108,12 @@ export const useWebRTC = (): UseWebRTCReturn => {
   }, [localStream]);
 
   const createPeerConnection = useCallback(() => {
+    // Close any existing PC before creating a new one
+    if (pc.current) {
+      pc.current.close();
+      pc.current = null;
+    }
+
     const peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
     peerConnection.onicecandidate = (event) => {
@@ -141,18 +136,14 @@ export const useWebRTC = (): UseWebRTCReturn => {
     peerConnection.onconnectionstatechange = () => {
       const state = peerConnection.connectionState;
       console.log('[WebRTC] Connection state change:', state);
-      
-      // Clear any existing fallback timer
+
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
         fallbackTimerRef.current = null;
       }
 
       if (state === 'connected') {
-        if (callTimeoutRef.current) {
-          clearTimeout(callTimeoutRef.current);
-          callTimeoutRef.current = null;
-        }
+        if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
         setCallStateWithRef('connected');
         if (!durationIntervalRef.current) {
           const start = Date.now();
@@ -162,14 +153,22 @@ export const useWebRTC = (): UseWebRTCReturn => {
         }
       } else if (state === 'failed' || state === 'disconnected') {
         setError('Connection lost.');
-        setCallState('ended');
+        setCallStateWithRef('ended');
         cleanup();
       } else if (state === 'connecting') {
-        // Fallback: If we're stuck in 'connecting' but tracks are flowing, force 'connected'
+        // Fallback for mobile: force connected if ICE is connected but RTCPeerConnection lags
         fallbackTimerRef.current = setTimeout(() => {
-          if (pc.current && pc.current.connectionState === 'connecting' && pc.current.iceConnectionState === 'connected') {
-            console.log('[WebRTC] ConnectionState stuck in connecting. Forcing connected state via fallback.');
+          if (pc.current &&
+            pc.current.connectionState === 'connecting' &&
+            pc.current.iceConnectionState === 'connected') {
+            console.log('[WebRTC] Fallback: forcing connected state');
             setCallStateWithRef('connected');
+            if (!durationIntervalRef.current) {
+              const start = Date.now();
+              durationIntervalRef.current = setInterval(() => {
+                setCallDuration(Math.floor((Date.now() - start) / 1000));
+              }, 1000);
+            }
           }
         }, 5000);
       }
@@ -177,10 +176,11 @@ export const useWebRTC = (): UseWebRTCReturn => {
 
     pc.current = peerConnection;
     return peerConnection;
-  }, [cleanup]);
+  }, [cleanup, setCallStateWithRef]);
 
   const flushIceCandidates = useCallback(async () => {
     if (!pc.current || !remoteDescriptionSet.current) return;
+    console.log('[WebRTC] Flushing', iceCandidateQueue.current.length, 'queued ICE candidates');
     for (const candidate of iceCandidateQueue.current) {
       try {
         await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -211,7 +211,6 @@ export const useWebRTC = (): UseWebRTCReturn => {
     currentCallRef.current = { recipientId, conversationId, callType };
 
     try {
-      // Get media and create peer connection FIRST
       const stream = await getUserMedia(callType);
       const peerConnection = createPeerConnection();
       stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
@@ -219,20 +218,17 @@ export const useWebRTC = (): UseWebRTCReturn => {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      console.log('[WebRTC] Sending Offer in INITIATE to:', recipientId);
-      // Send INITIATE with the offer included so callee has everything
       signalingRef.current?.sendInitiate({
         callerId: currentUser.id,
         callerName,
         callerAvatar,
         recipientId,
-        targetUserId: recipientId, // Add targetUserId for filtering
+        targetUserId: recipientId,
         conversationId,
         callType,
-        offer, // Include offer in initiate
+        offer,
       });
 
-      // Log outgoing call immediately
       addCallLog({
         type: 'outgoing',
         callType,
@@ -240,7 +236,6 @@ export const useWebRTC = (): UseWebRTCReturn => {
         avatar: callerAvatar || '',
       });
 
-      console.log('[WebRTC] Sending Offer to:', recipientId);
       signalingRef.current?.sendOffer({
         targetUserId: recipientId,
         offer,
@@ -284,14 +279,12 @@ export const useWebRTC = (): UseWebRTCReturn => {
       const answer = await pc.current.createAnswer();
       await pc.current.setLocalDescription(answer);
 
-      console.log('[WebRTC] Sending Answer to:', incomingCall.callerId);
       signalingRef.current?.sendAnswer({
         targetUserId: incomingCall.callerId,
         answer,
         conversationId: incomingCall.conversationId,
       });
 
-      // Log incoming call when accepted
       addCallLog({
         type: 'incoming',
         callType: incomingCall.callType,
@@ -300,8 +293,6 @@ export const useWebRTC = (): UseWebRTCReturn => {
       });
 
       setIncomingCall(null);
-      // Removed: setCallState('connected'); 
-      // Let onconnectionstatechange handle the transition to 'connected'
     } catch (err: any) {
       console.error('[WebRTC] acceptCall failed:', err);
       const msg = err.name === 'NotAllowedError' || err.name === 'NotFoundError'
@@ -312,27 +303,24 @@ export const useWebRTC = (): UseWebRTCReturn => {
       cleanup();
       setTimeout(() => setCallStateWithRef('idle'), 3000);
     }
-  }, [incomingCall, getUserMedia, cleanup]);
+  }, [incomingCall, getUserMedia, cleanup, setCallStateWithRef, addCallLog]);
 
   const rejectCall = useCallback(() => {
     if (!incomingCall) return;
-
-    // Log missed call when rejected
     addCallLog({
       type: 'missed',
       callType: incomingCall.callType,
       name: incomingCall.callerName,
       avatar: incomingCall.callerAvatar,
     });
-
     signalingRef.current?.sendReject({
       callerId: incomingCall.callerId,
       conversationId: incomingCall.conversationId,
     });
     setIncomingCall(null);
-    setCallState('idle');
+    setCallStateWithRef('idle');
     cleanup();
-  }, [incomingCall, cleanup, addCallLog]);
+  }, [incomingCall, cleanup, addCallLog, setCallStateWithRef]);
 
   const endCall = useCallback(() => {
     if (currentCallRef.current) {
@@ -345,21 +333,19 @@ export const useWebRTC = (): UseWebRTCReturn => {
     setCallStateWithRef('ended');
     cleanup();
     setTimeout(() => setCallStateWithRef('idle'), 1500);
-  }, [cleanup]);
+  }, [cleanup, setCallStateWithRef]);
 
   const toggleMute = useCallback(() => {
     if (localStream) {
-      localStream.getAudioTracks().forEach((track) => track.enabled = !track.enabled);
+      localStream.getAudioTracks().forEach((track) => { track.enabled = !track.enabled; });
       setIsMuted((prev) => !prev);
     }
   }, [localStream]);
 
-  // Stable callbacks ref for the persistent signaling channel
   const callbacksRef = useRef<any>(null);
 
   useEffect(() => {
     if (!currentUser?.id) return;
-
     const signaling = VoIPService.createSignalingChannel('calls', currentUser.id, {
       onIncomingCall: (data) => callbacksRef.current?.onIncomingCall(data),
       onCallOffer: (data) => callbacksRef.current?.onCallOffer(data),
@@ -369,62 +355,62 @@ export const useWebRTC = (): UseWebRTCReturn => {
       onHangup: (data) => callbacksRef.current?.onHangup(data),
       onBusy: (data) => callbacksRef.current?.onBusy(data),
     });
-
     signalingRef.current = signaling;
-
-    return () => {
-      signaling.cleanup();
-      signalingRef.current = null;
-    };
+    return () => { signaling.cleanup(); signalingRef.current = null; };
   }, [currentUser?.id]);
 
   useEffect(() => {
     callbacksRef.current = {
       onIncomingCall: (data: any) => {
         console.log('[WebRTC] Incoming call signal received:', data);
-        // Use the ref to avoid stale closure issues
         if (callStateRef.current !== 'idle') {
-          console.log('[WebRTC] Busy - already in call state:', callStateRef.current);
           signalingRef.current?.sendBusy({ targetUserId: data.callerId, callerId: currentUser?.id });
           return;
         }
-        currentCallRef.current = { callerId: data.callerId, conversationId: data.conversationId, callType: data.callType };
+        currentCallRef.current = {
+          callerId: data.callerId,
+          conversationId: data.conversationId,
+          callType: data.callType
+        };
 
-        // If offer is included in INITIATE, process it immediately so acceptCall works instantly
+        // FIXED: Always create the peer connection immediately so ICE candidates
+        // can be queued against a real RTCPeerConnection from the start
+        const peerConnection = createPeerConnection();
+
         if (data.offer) {
-          console.log('[WebRTC] Offer received in INITIATE, creating peer connection now');
-          const peerConnection = createPeerConnection();
+          console.log('[WebRTC] Offer in INITIATE — setting remote description now');
           peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
             .then(() => {
               remoteDescriptionSet.current = true;
               return flushIceCandidates();
             })
-            .catch((err) => {
-              console.error('[WebRTC] Error processing offer from INITIATE:', err);
-            });
+            .catch((err) => console.error('[WebRTC] Error processing offer from INITIATE:', err));
         }
 
         setIncomingCall(data);
         setCallStateWithRef('ringing');
       },
+
       onCallOffer: async (data: any) => {
         console.log('[WebRTC] Offer received via CALL_OFFER:', data);
-        // If peer connection already exists (offer was processed via INITIATE), skip
+        // Skip if already processed via INITIATE
         if (pc.current && remoteDescriptionSet.current) {
-          console.log('[WebRTC] Offer already processed via INITIATE, skipping duplicate');
+          console.log('[WebRTC] Offer already processed, skipping duplicate');
           return;
         }
-        const peerConnection = createPeerConnection();
+        // Create PC if it doesn't exist (fallback for late INITIATE)
+        const peerConnection = pc.current || createPeerConnection();
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
         remoteDescriptionSet.current = true;
         await flushIceCandidates();
 
         if (pendingAcceptRef.current) {
-          console.log('[WebRTC] Offer arrived after early accept. Processing accept flow now.');
+          console.log('[WebRTC] Offer arrived after early accept — processing now');
           pendingAcceptRef.current = false;
           acceptCall();
         }
       },
+
       onCallAnswered: async (data: any) => {
         console.log('[WebRTC] Answer received:', data);
         if (pc.current) {
@@ -433,6 +419,7 @@ export const useWebRTC = (): UseWebRTCReturn => {
           await flushIceCandidates();
         }
       },
+
       onIceCandidate: async (data: any) => {
         console.log('[WebRTC] ICE Candidate received:', data.candidate ? 'exists' : 'null');
         if (remoteDescriptionSet.current && pc.current) {
@@ -440,10 +427,11 @@ export const useWebRTC = (): UseWebRTCReturn => {
             console.error('[WebRTC] Error adding ICE candidate:', e);
           });
         } else {
-          console.log('[WebRTC] Queuing ICE candidate');
+          console.log('[WebRTC] Queuing ICE candidate (no remote description yet)');
           iceCandidateQueue.current.push(data.candidate);
         }
       },
+
       onReject: (data: any) => {
         console.log('[WebRTC] Call rejected by remote:', data);
         setError('Call declined.');
@@ -451,12 +439,14 @@ export const useWebRTC = (): UseWebRTCReturn => {
         cleanup();
         setTimeout(() => setCallStateWithRef('idle'), 2000);
       },
+
       onHangup: (data: any) => {
         console.log('[WebRTC] Call ended by remote:', data);
         setCallStateWithRef('ended');
         cleanup();
         setTimeout(() => setCallStateWithRef('idle'), 1500);
       },
+
       onBusy: (data: any) => {
         console.log('[WebRTC] Remote user is busy:', data);
         setError('User is busy.');
