@@ -23,6 +23,42 @@ export async function DELETE(req: Request) {
       }
     });
 
+    // 2. Restore UserConversation for the current user in all shared 1-on-1 chats
+    const sharedConversations = await prisma.conversation.findMany({
+      where: {
+        isGroup: false,
+        members: {
+          some: { userId }
+        }
+      }
+    });
+
+    for (const convo of sharedConversations) {
+      // Re-link the current user if they were removed during block
+      await prisma.userConversation.upsert({
+        where: {
+          userId_conversationId: {
+            conversationId: convo.id,
+            userId: currentUser.id
+          }
+        },
+        update: {}, // No changes needed if already exists
+        create: {
+          conversationId: convo.id,
+          userId: currentUser.id
+        }
+      });
+    }
+
+    // 3. Emit Unblock event to both users
+    const { realtimeBus, REALTIME_EVENTS } = await import('@/lib/realtime-bus');
+    realtimeBus.emit(REALTIME_EVENTS.CONVERSATION_UPDATE, { 
+      id: sharedConversations[0]?.id, 
+      unblocked: true,
+      blockerId: currentUser.id,
+      unblockedId: userId
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[UNBLOCK_USER]", err);

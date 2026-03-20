@@ -141,6 +141,16 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
                fetchConversations();
                return current;
             }
+
+            // Clear typing status for this user when message arrives
+            setPresence(prev => {
+              const newState = { ...prev };
+              if (newState[data.senderId]) {
+                delete newState[data.senderId];
+              }
+              return newState;
+            });
+
             const updated = [...current];
             const chat = { ...updated[index] };
             
@@ -232,7 +242,11 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
             setConversations(current => {
               return current.map(c => {
                 if (c.id === data.id) {
-                  return { ...c, ...data };
+                  const updatedChat = { ...c, ...data };
+                  if (data.unblocked) {
+                    updatedChat.blockStatus = null;
+                  }
+                  return updatedChat;
                 }
                 return c;
               });

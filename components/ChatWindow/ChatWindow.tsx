@@ -230,6 +230,8 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
             });
             return [...filtered, { ...data, body: decryptedBody, sender, replyTo }];
           });
+          setTypingUsers(prev => prev.filter(id => id !== data.senderId));
+          setRecordingUsers(prev => prev.filter(id => id !== data.senderId));
           setTimeout(scrollToBottom, 50);
           fetch(`/api/conversations/${chat.id}/seen`, { method: 'POST' });
           break;
@@ -275,6 +277,16 @@ export default function ChatWindow({ chat, onBack, isMobileWindowVisible, onStar
 
         case 'message:update':
           setMessages((current) => current.map(m => m.id === data.id ? { ...m, ...data } : m));
+          break;
+
+        case 'conversation:update':
+          if (data.id === chat.id && data.unblocked) {
+            // refresh page or manually clear block status? 
+            // Better to refresh conversations and hope store syncs, 
+            // but we can also force it here if we had a setChat.
+            // Since we use prop 'chat', we rely on page.tsx to update.
+            refreshConversations();
+          }
           break;
       }
     });
