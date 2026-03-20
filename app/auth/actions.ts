@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
 import { signJWT } from '@/lib/jwt';
+import { validateEmail, validatePassword, validateUsername } from '@/lib/validation';
 
 export async function login(formData: FormData) {
   const email = formData.get('email') as string;
@@ -26,7 +27,20 @@ export async function login(formData: FormData) {
     return { error: 'Invalid email or password' };
   }
 
-  const token = await signJWT({ userId: user.id, email: user.email });
+  // Generate a unique session ID for single-session enforcement
+  const sessionId = crypto.randomUUID();
+
+  // Update user with the new session token
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { sessionToken: sessionId }
+  });
+
+  const token = await signJWT({ 
+    userId: user.id, 
+    email: user.email,
+    sessionId: sessionId 
+  });
 
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
@@ -60,11 +74,20 @@ export async function signup(formData: FormData) {
     return { error: 'User with this email or username already exists' };
   }
 
-  if (password.length < 8) {
-    return { error: 'Password must be at least 8 characters long' };
-  }
+  // Detailed validations
+  const emailVal = validateEmail(email);
+  if (!emailVal.valid) return { error: emailVal.error };
+
+  const userVal = validateUsername(username);
+  if (!userVal.valid) return { error: userVal.error };
+
+  const passVal = validatePassword(password);
+  if (!passVal.valid) return { error: passVal.error };
 
   const hashedPassword = await bcrypt.hash(password, 12);
+
+  // Generate session ID
+  const sessionId = crypto.randomUUID();
 
   const user = await prisma.user.create({
     data: {
@@ -72,10 +95,15 @@ export async function signup(formData: FormData) {
       username,
       hashedPassword,
       isPrivate: !isPublic,
+      sessionToken: sessionId
     }
   });
 
-  const token = await signJWT({ userId: user.id, email: user.email });
+  const token = await signJWT({ 
+    userId: user.id, 
+    email: user.email,
+    sessionId: sessionId 
+  });
 
   const cookieStore = await cookies();
   cookieStore.set('session', token, {

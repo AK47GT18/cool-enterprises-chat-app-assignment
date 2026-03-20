@@ -18,6 +18,7 @@ model User {
   bio             String?
   createdAt       DateTime @default(now())
   lastSeen        DateTime @default(now())
+  sessionToken    String?
 
   sentRequests        ContactRequest[]   @relation("SentRequests")
   receivedRequests    ContactRequest[]   @relation("ReceivedRequests")
