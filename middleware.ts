@@ -23,9 +23,10 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
+  const isAuthApi = request.nextUrl.pathname.startsWith('/api/auth');
 
-  // If NOT authenticated and not on an auth page
-  if (!isValid && !isAuthRoute) {
+  // If NOT authenticated and not on an auth page/api
+  if (!isValid && !isAuthRoute && !isAuthApi) {
     // API routes get a 401 JSON response
     if (isApiRoute) {
       return NextResponse.json(
@@ -35,11 +36,6 @@ export async function middleware(request: NextRequest) {
     }
     // Page routes get redirected to login
     return NextResponse.redirect(new URL('/auth/login', request.url));
-  }
-
-  // If authenticated but on an auth page, send them home
-  if (isAuthRoute && isValid) {
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();
