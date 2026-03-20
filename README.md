@@ -25,7 +25,9 @@ A premium, real-time chat application built with Next.js, featuring WebRTC voice
 - **Read Receipts** — "Seen" status tracking for messages.
 
 ### 📞 Voice & Video Calls (WebRTC)
-- **Peer-to-Peer Calling** — High-quality audio/video calls using WebRTC with STUN/TURN server support.
+> ⚠️ **Note:** Calling features are currently in an experimental state. Voice calls are partially working (audio may only play one-sided in some environments), and video calling is still under development.
+
+- **Peer-to-Peer Calling** — Audio/video calls using WebRTC with STUN/TURN server support.
 - **Incoming Call UI** — Premium modal with caller info, accept/reject buttons.
 - **Active Call UI** — Full-screen call interface with mute toggle, call duration timer, and end call button.
 - **Mobile NAT Traversal** — TURN server fallback for reliable connections across mobile networks and firewalls.
