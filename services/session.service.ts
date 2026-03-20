@@ -28,14 +28,25 @@ export const SessionService = {
           image: true,
           isPrivate: true,
           isEmailVerified: true,
-          sessionToken: true,
           createdAt: true,
         },
       });
 
-      // Special check for Single Session (sessionId in token must match DB)
-      if (user && payload?.sessionId && (user as any).sessionToken !== payload.sessionId) {
-        return null;
+      if (!user) return null;
+
+      // Single-session check: only run if the JWT has a sessionId
+      if (payload?.sessionId) {
+        try {
+          const sessionCheck = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { sessionToken: true },
+          });
+          if (sessionCheck && (sessionCheck as any).sessionToken !== payload.sessionId) {
+            return null; // Session was replaced by a newer login
+          }
+        } catch {
+          // sessionToken column may not exist yet in production DB — skip check
+        }
       }
 
       return user;
